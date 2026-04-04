@@ -4,8 +4,6 @@
 
 English | [中文](README.zh-cn.md)
 
-Header-based universal archive unpacker.
-
 `unpack` is a command-line tool written in Rust. It identifies the archive format from file headers and calls the right system tool to extract it.
 
 No need to remember whether to use `tar`, `unzip`, or `7z`, or what `-xzf`, `-xJf`, `-d`, `-o` means for which tool. Just `unpack <file>` and it handles the rest.
