@@ -4,15 +4,15 @@
 
 [English](README.md) | 中文
 
-`sure-unpack` 是一个用 Rust 编写的命令行工具。它自动识别归档格式，调用系统中已安装的解压工具完成解包。
+`unpack` 是一个用 Rust 编写的命令行工具。它自动识别归档格式，调用系统中已安装的解压工具完成解包。
 
-不用再记 `tar -xzf`、`unzip -d`、`7z x -o` 之间的差异，一个 `sure-unpack <file>` 就够了。
+不用再记 `tar -xzf`、`unzip -d`、`7z x -o` 之间的差异，一个 `unpack <file>` 就够了。
 
 ## 安装
 
 ```sh
 brew tap ChunzhengLab/tap
-brew install sure-unpack
+brew install unpack
 ```
 
 详见 [homebrew-tap](https://github.com/ChunzhengLab/homebrew-tap)。
@@ -20,22 +20,22 @@ brew install sure-unpack
 ## 用法
 
 ```
-sure-unpack [选项] <归档文件> [目标目录]
-sure-unpack list <归档文件>
+unpack [选项] <归档文件> [目标目录]
+unpack list <归档文件>
 ```
 
-最简单的用法是 `sure-unpack <file>`，格式从扩展名自动识别，输出目录自动创建。
+最简单的用法是 `unpack <file>`，格式从扩展名自动识别，输出目录自动创建。
 
 ## 示例
 
 ```sh
-sure-unpack project.tar.gz              # → ./project/
-sure-unpack archive.zip -C /tmp         # → /tmp/archive/
-sure-unpack project.tar.gz --here       # 解压到当前目录，不建子目录
-sure-unpack list project.tar.gz         # 预览内容，不解压
-sure-unpack -l project.tar.gz           # 同上
-sure-unpack -o project.tar.gz           # 允许覆盖已有文件
-sure-unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
+unpack project.tar.gz              # → ./project/
+unpack archive.zip -C /tmp         # → /tmp/archive/
+unpack project.tar.gz --here       # 解压到当前目录，不建子目录
+unpack list project.tar.gz         # 预览内容，不解压
+unpack -l project.tar.gz           # 同上
+unpack -o project.tar.gz           # 允许覆盖已有文件
+unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 ```
 
 ## 选项
@@ -46,7 +46,7 @@ sure-unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 -o, --overwrite          允许覆盖已有文件
     --strip-components N 去掉前 N 层路径（仅限 tar）
 -v, --verbose            显示详细输出
--l, --list               等同于 sure-unpack list
+-l, --list               等同于 unpack list
     --help               显示帮助
     --version            显示版本
 ```
@@ -63,7 +63,7 @@ sure-unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 | `.xz` | `xz` | 单文件解压 |
 | `.zst` | `zstd` | 单文件解压 |
 
-`sure-unpack` 本身不解析压缩格式，而是调用系统中已安装的工具。如果缺少所需工具，会明确提示需要安装什么。
+`unpack` 本身不解析压缩格式，而是调用系统中已安装的工具。如果缺少所需工具，会明确提示需要安装什么。
 
 ## 默认行为
 
@@ -71,4 +71,3 @@ sure-unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 - **拒绝覆盖**：目标已存在时拒绝解压，避免意外覆盖。使用 `-o` 可强制覆盖。
 - **路径安全警告**：归档中包含 `..` 或绝对路径的条目会在 stderr 输出警告。
 - **缺少工具时明确报错**：提示缺少哪个工具以及它对应哪种格式。
-

@@ -5,11 +5,11 @@ use crate::error::Error;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const USAGE: &str = "\
-sure-unpack - one command to unpack them all
+unpack - one command to unpack them all
 
 USAGE:
-    sure-unpack [OPTIONS] <ARCHIVE> [DEST]
-    sure-unpack list <ARCHIVE>
+    unpack [OPTIONS] <ARCHIVE> [DEST]
+    unpack list <ARCHIVE>
 
 COMMANDS:
     list            Preview archive contents without extracting
@@ -21,7 +21,7 @@ OPTIONS:
     -o, --overwrite          Allow overwriting existing files
         --strip-components N Strip N leading path components (tar only)
     -v, --verbose            Show detailed output
-    -l, --list               Same as 'sure-unpack list'
+    -l, --list               Same as 'unpack list'
         --help               Show this help
         --version            Show version";
 
@@ -70,7 +70,7 @@ where
                 return Ok(None);
             }
             "--version" | "-V" => {
-                println!("sure-unpack {VERSION}");
+                println!("unpack {VERSION}");
                 return Ok(None);
             }
             "list" if positionals.is_empty() && !is_list => {
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn bare_extract() {
-        let cmd = parse(args("sure-unpack foo.tar.gz")).unwrap().unwrap();
+        let cmd = parse(args("unpack foo.tar.gz")).unwrap().unwrap();
         match cmd {
             Command::Extract(opts) => {
                 assert_eq!(opts.archive, PathBuf::from("foo.tar.gz"));
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn extract_with_dest() {
-        let cmd = parse(args("sure-unpack foo.tar.gz /tmp/out")).unwrap().unwrap();
+        let cmd = parse(args("unpack foo.tar.gz /tmp/out")).unwrap().unwrap();
         match cmd {
             Command::Extract(opts) => {
                 assert_eq!(opts.archive, PathBuf::from("foo.tar.gz"));
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn extract_with_options() {
-        let cmd = parse(args("sure-unpack -o -v --here --strip-components 2 foo.zip"))
+        let cmd = parse(args("unpack -o -v --here --strip-components 2 foo.zip"))
             .unwrap()
             .unwrap();
         match cmd {
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn extract_with_into() {
-        let cmd = parse(args("sure-unpack -C /tmp foo.tar.gz")).unwrap().unwrap();
+        let cmd = parse(args("unpack -C /tmp foo.tar.gz")).unwrap().unwrap();
         match cmd {
             Command::Extract(opts) => {
                 assert_eq!(opts.into.unwrap(), PathBuf::from("/tmp"));
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn list_subcommand() {
-        let cmd = parse(args("sure-unpack list foo.tar.gz")).unwrap().unwrap();
+        let cmd = parse(args("unpack list foo.tar.gz")).unwrap().unwrap();
         match cmd {
             Command::List(opts) => {
                 assert_eq!(opts.archive, PathBuf::from("foo.tar.gz"));
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn list_flag() {
-        let cmd = parse(args("sure-unpack -l foo.zip")).unwrap().unwrap();
+        let cmd = parse(args("unpack -l foo.zip")).unwrap().unwrap();
         match cmd {
             Command::List(opts) => {
                 assert_eq!(opts.archive, PathBuf::from("foo.zip"));
@@ -225,7 +225,7 @@ mod tests {
 
     #[test]
     fn list_long_flag() {
-        let cmd = parse(args("sure-unpack --list archive.7z")).unwrap().unwrap();
+        let cmd = parse(args("unpack --list archive.7z")).unwrap().unwrap();
         match cmd {
             Command::List(opts) => {
                 assert_eq!(opts.archive, PathBuf::from("archive.7z"));
@@ -236,33 +236,33 @@ mod tests {
 
     #[test]
     fn help_returns_none() {
-        assert!(parse(args("sure-unpack --help")).unwrap().is_none());
-        assert!(parse(args("sure-unpack -h")).unwrap().is_none());
+        assert!(parse(args("unpack --help")).unwrap().is_none());
+        assert!(parse(args("unpack -h")).unwrap().is_none());
     }
 
     #[test]
     fn version_returns_none() {
-        assert!(parse(args("sure-unpack --version")).unwrap().is_none());
-        assert!(parse(args("sure-unpack -V")).unwrap().is_none());
+        assert!(parse(args("unpack --version")).unwrap().is_none());
+        assert!(parse(args("unpack -V")).unwrap().is_none());
     }
 
     #[test]
     fn missing_archive() {
-        assert!(parse(args("sure-unpack")).is_err());
+        assert!(parse(args("unpack")).is_err());
     }
 
     #[test]
     fn unknown_option() {
-        assert!(parse(args("sure-unpack --foo bar.tar")).is_err());
+        assert!(parse(args("unpack --foo bar.tar")).is_err());
     }
 
     #[test]
     fn into_missing_value() {
-        assert!(parse(args("sure-unpack -C")).is_err());
+        assert!(parse(args("unpack -C")).is_err());
     }
 
     #[test]
     fn strip_components_invalid() {
-        assert!(parse(args("sure-unpack --strip-components abc foo.tar")).is_err());
+        assert!(parse(args("unpack --strip-components abc foo.tar")).is_err());
     }
 }

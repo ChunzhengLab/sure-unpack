@@ -157,7 +157,7 @@ fn resolve_dest(
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("sure-unpack: {e}");
+        eprintln!("unpack: {e}");
         std::process::exit(e.exit_code());
     }
 }

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn sure_unpack() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_sure-unpack"))
+    Command::new(env!("CARGO_BIN_EXE_unpack"))
 }
 
 fn has_tool(name: &str) -> bool {
@@ -275,7 +275,7 @@ fn help_flag() {
     let output = sure_unpack().arg("--help").output().unwrap();
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("sure-unpack"));
+    assert!(stdout.contains("unpack"));
     assert!(stdout.contains("USAGE"));
 }
 

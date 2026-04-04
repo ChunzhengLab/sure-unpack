@@ -49,7 +49,7 @@ jobs:
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           archive="sure-unpack-${tag}-${{ matrix.target }}.tar.gz"
-          tar -czf "$archive" -C "target/${{ matrix.target }}/release" sure-unpack
+          tar -czf "$archive" -C "target/${{ matrix.target }}/release" unpack
           echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
 
       - name: Upload artifact
@@ -103,8 +103,8 @@ jobs:
           sha_x86_64_linux=$(sha256sum x86_64_linux.tar.gz | awk '{print $1}')
           sha_aarch64_linux=$(sha256sum aarch64_linux.tar.gz | awk '{print $1}')
 
-          cat > Formula/sure-unpack.rb << FORMULA
-          class SureUnpack < Formula
+          cat > Formula/unpack.rb << FORMULA
+          class Unpack < Formula
             desc "Universal archive unpacker that auto-detects format and calls the right tool"
             homepage "https://github.com/ChunzhengLab/sure-unpack"
             version "${version}"
@@ -135,11 +135,11 @@ jobs:
             end
 
             def install
-              bin.install "sure-unpack"
+              bin.install "unpack"
             end
 
             test do
-              assert_match "sure-unpack", shell_output("#{bin}/sure-unpack --help")
+              assert_match "unpack", shell_output("#{bin}/unpack --help")
             end
           end
           FORMULA
@@ -149,6 +149,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           tag="${GITHUB_REF#refs/tags/}"
-          git add Formula/sure-unpack.rb
-          git commit -m "Update sure-unpack to ${tag}"
+          git add Formula/unpack.rb
+          git commit -m "Update unpack to ${tag}"
           git push
