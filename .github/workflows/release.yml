@@ -110,6 +110,10 @@ jobs:
             version "${version}"
             license "MIT"
 
+            depends_on "xz"
+            depends_on "zstd"
+            depends_on "sevenzip" => :optional
+
             on_macos do
               if Hardware::CPU.arm?
                 url "${base_url}/sure-unpack-${tag}-aarch64-apple-darwin.tar.gz"

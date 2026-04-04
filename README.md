@@ -1,5 +1,7 @@
 # sure-unpack
 
+[![build](https://github.com/ChunzhengLab/sure-unpack/actions/workflows/rust.yml/badge.svg)](https://github.com/ChunzhengLab/sure-unpack/actions/workflows/rust.yml) [![version](https://img.shields.io/github/v/tag/ChunzhengLab/sure-unpack?label=version)](https://github.com/ChunzhengLab/sure-unpack/releases) [![license](https://img.shields.io/github/license/ChunzhengLab/sure-unpack)](LICENSE)
+
 English | [中文](README.zh-cn.md)
 
 `sure-unpack` is a command-line tool written in Rust. It detects the archive format automatically and calls the right system tool to extract it.
@@ -9,10 +11,11 @@ No more remembering `tar -xzf` vs `unzip -d` vs `7z x -o`. Just `sure-unpack <fi
 ## Install
 
 ```sh
-cargo install --path .
+brew tap ChunzhengLab/tap
+brew install sure-unpack
 ```
 
-Requires Rust 2024 edition (1.85+).
+See [homebrew-tap](https://github.com/ChunzhengLab/homebrew-tap) for details.
 
 ## Usage
 
@@ -23,7 +26,7 @@ sure-unpack list <ARCHIVE>
 
 The simplest usage is `sure-unpack <file>`. Format is detected from the file extension, and an output directory is created automatically.
 
-### Examples
+## Examples
 
 ```sh
 sure-unpack project.tar.gz              # → ./project/
@@ -35,7 +38,7 @@ sure-unpack -o project.tar.gz           # allow overwriting existing files
 sure-unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
 ```
 
-### Options
+## Options
 
 ```
 -C, --into <DIR>         Extract into specified directory
@@ -69,12 +72,3 @@ sure-unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
 - **Path safety warnings**: entries containing `..` or absolute paths trigger a warning on stderr.
 - **Missing tool reporting**: clear error message naming the missing tool and the format it handles.
 
-## Design
-
-- Zero third-party dependencies. Hand-written CLI parser and error types.
-- Overwrite protection is enforced at the entry level by pre-checking archive members against the destination, rather than relying on backend-specific flags.
-- Single-file decompression streams directly from the tool's stdout to disk, without buffering the entire content in memory.
-
-## License
-
-MIT
