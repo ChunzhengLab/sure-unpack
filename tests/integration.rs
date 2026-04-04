@@ -543,3 +543,160 @@ fn dry_run_missing_tool_multi() {
     assert!(stdout.contains("tool:      NOT FOUND"));
     assert!(stdout.contains("backend:   tar"));
 }
+
+#[test]
+fn format_override_extract() {
+    if !has_tool("tar") {
+        return;
+    }
+    // Create a .tar.gz but name it .bin
+    let dir = temp_dir("format-override");
+    let archive = create_tar_gz(&dir);
+    let renamed = dir.join("mystery.bin");
+    fs::rename(&archive, &renamed).unwrap();
+
+    let work = dir.join("work");
+    fs::create_dir_all(&work).unwrap();
+
+    // --format tar.gz explicitly overrides detection
+    let output = sure_unpack()
+        .arg("--format")
+        .arg("tar.gz")
+        .arg(&renamed)
+        .current_dir(&work)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    // stem is "mystery.bin" (extension doesn't match tar.gz, so nothing stripped)
+    assert!(work.join("mystery.bin/mydir/hello.txt").exists());
+}
+
+#[test]
+fn format_override_list() {
+    if !has_tool("tar") {
+        return;
+    }
+    let dir = temp_dir("format-override-list");
+    let archive = create_tar_gz(&dir);
+    let renamed = dir.join("mystery.bin");
+    fs::rename(&archive, &renamed).unwrap();
+
+    // --format should work with list too
+    let output = sure_unpack()
+        .arg("list")
+        .arg("--format")
+        .arg("tar.gz")
+        .arg(&renamed)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("mydir/hello.txt"));
+}
+
+#[test]
+fn sniff_detects_tar_gz() {
+    if !has_tool("tar") || !has_tool("gunzip") {
+        return;
+    }
+    // .tar.gz content named .bin — sniff + probe should detect tar.gz
+    let dir = temp_dir("sniff-tar-gz");
+    let archive = create_tar_gz(&dir);
+    let renamed = dir.join("mystery.bin");
+    fs::rename(&archive, &renamed).unwrap();
+
+    let work = dir.join("work");
+    fs::create_dir_all(&work).unwrap();
+
+    // Should detect as tar.gz and extract correctly (no warning needed)
+    let output = sure_unpack()
+        .arg(&renamed)
+        .current_dir(&work)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(work.join("mystery.bin/mydir/hello.txt").exists());
+}
+
+#[test]
+fn sniff_fallback_zip() {
+    if !has_tool("unzip") || !has_tool("zip") {
+        return;
+    }
+    let dir = temp_dir("sniff-zip");
+    let archive = create_zip(&dir);
+    let renamed = dir.join("mystery.bin");
+    fs::rename(&archive, &renamed).unwrap();
+
+    let work = dir.join("work");
+    fs::create_dir_all(&work).unwrap();
+
+    // Sniff should detect .zip and extract correctly (no tarball ambiguity)
+    let output = sure_unpack()
+        .arg(&renamed)
+        .current_dir(&work)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(work.join("mystery.bin/mydir/hello.txt").exists());
+}
+
+#[test]
+fn sniff_subcommand() {
+    if !has_tool("tar") || !has_tool("gunzip") || !has_tool("zip") {
+        return;
+    }
+    let dir = temp_dir("sniff-subcommand");
+    let tar_gz = create_tar_gz(&dir);
+    let zip = create_zip(&dir);
+
+    let output = sure_unpack()
+        .arg("sniff")
+        .arg(&tar_gz)
+        .arg(&zip)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains(".tar.gz"), "stdout: {stdout}");
+    assert!(stdout.contains(".zip"), "stdout: {stdout}");
+}
+
+#[test]
+fn sniff_subcommand_unknown() {
+    let dir = temp_dir("sniff-unknown");
+    let f = dir.join("readme.txt");
+    fs::write(&f, "just text").unwrap();
+
+    let output = sure_unpack()
+        .arg("sniff")
+        .arg(&f)
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("unknown"));
+}
+
+#[test]
+fn sniff_subcommand_renamed() {
+    if !has_tool("tar") || !has_tool("gunzip") {
+        return;
+    }
+    let dir = temp_dir("sniff-renamed");
+    let archive = create_tar_gz(&dir);
+    let renamed = dir.join("mystery.bin");
+    fs::rename(&archive, &renamed).unwrap();
+
+    let output = sure_unpack()
+        .arg("sniff")
+        .arg(&renamed)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains(".tar.gz"), "stdout: {stdout}");
+}

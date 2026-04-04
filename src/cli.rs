@@ -12,6 +12,7 @@ USAGE:
     unpack list <ARCHIVE>
 
 COMMANDS:
+    sniff           Detect format from file header (ignores extension)
     list            Preview archive contents without extracting
     (default)       Extract the archive
 
@@ -19,6 +20,7 @@ OPTIONS:
     -C, --into <DIR>         Extract into specified directory
         --here               Extract into current directory (no subdirectory)
     -o, --overwrite          Allow overwriting existing files
+        --format <FMT>       Override format detection (e.g. tar.gz, zip, 7z)
         --strip-components N Strip N leading path components (tar only)
         --dry-run            Show what would happen without extracting
     -v, --verbose            Show detailed output
@@ -30,6 +32,7 @@ OPTIONS:
 pub enum Command {
     Extract(ExtractOpts),
     List(ListOpts),
+    Sniff(Vec<PathBuf>),
 }
 
 #[derive(Debug)]
@@ -39,6 +42,7 @@ pub struct ExtractOpts {
     pub into: Option<PathBuf>,
     pub here: bool,
     pub overwrite: bool,
+    pub format_override: Option<String>,
     pub strip_components: u32,
     pub dry_run: bool,
     pub verbose: bool,
@@ -47,6 +51,7 @@ pub struct ExtractOpts {
 #[derive(Debug)]
 pub struct ListOpts {
     pub archive: PathBuf,
+    pub format_override: Option<String>,
 }
 
 /// Parse CLI arguments. Returns Ok(None) if --help or --version was printed.
@@ -58,9 +63,11 @@ where
     let _program = args.next(); // skip argv[0]
 
     let mut is_list = false;
+    let mut is_sniff = false;
     let mut into: Option<PathBuf> = None;
     let mut here = false;
     let mut overwrite = false;
+    let mut format_override: Option<String> = None;
     let mut strip_components: u32 = 0;
     let mut dry_run = false;
     let mut verbose = false;
@@ -76,8 +83,11 @@ where
                 println!("unpack {VERSION}");
                 return Ok(None);
             }
-            "list" if positionals.is_empty() && !is_list => {
+            "list" if positionals.is_empty() && !is_list && !is_sniff => {
                 is_list = true;
+            }
+            "sniff" if positionals.is_empty() && !is_list && !is_sniff => {
+                is_sniff = true;
             }
             "-l" | "--list" => {
                 is_list = true;
@@ -93,6 +103,12 @@ where
             }
             "-o" | "--overwrite" => {
                 overwrite = true;
+            }
+            "--format" => {
+                let val = args.next().ok_or_else(|| {
+                    Error::Usage("--format requires a format name".into())
+                })?;
+                format_override = Some(val);
             }
             "--strip-components" => {
                 let val = args.next().ok_or_else(|| {
@@ -121,9 +137,27 @@ where
         return Err(Error::Usage("missing archive file argument".into()));
     }
 
+    if is_sniff {
+        if into.is_some()
+            || here
+            || overwrite
+            || format_override.is_some()
+            || strip_components > 0
+            || dry_run
+            || verbose
+        {
+            return Err(Error::Usage(
+                "sniff does not accept options — just file paths".into(),
+            ));
+        }
+        let paths = positionals.iter().map(PathBuf::from).collect();
+        return Ok(Some(Command::Sniff(paths)));
+    }
+
     if is_list {
         return Ok(Some(Command::List(ListOpts {
             archive: PathBuf::from(&positionals[0]),
+            format_override,
         })));
     }
 
@@ -136,6 +170,7 @@ where
         into,
         here,
         overwrite,
+        format_override,
         strip_components,
         dry_run,
         verbose,

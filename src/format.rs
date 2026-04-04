@@ -95,6 +95,118 @@ pub fn detect(path: &Path) -> Result<ArchiveFormat, Error> {
     Err(Error::UnknownFormat(path.to_path_buf()))
 }
 
+/// Parse a format name from --format flag (e.g. "tar.gz", "zip", "7z").
+pub fn from_name(name: &str) -> Option<ArchiveFormat> {
+    let lower = name.to_ascii_lowercase();
+    // Try matching against extensions (with or without leading dot)
+    let with_dot = if lower.starts_with('.') {
+        lower.clone()
+    } else {
+        format!(".{lower}")
+    };
+    for &fmt in ArchiveFormat::ALL {
+        for ext in fmt.extensions() {
+            if *ext == with_dot {
+                return Some(fmt);
+            }
+        }
+    }
+    None
+}
+
+/// Sniff the outer archive format from file header magic bytes.
+/// Pure file I/O — no external tool calls, no subprocess spawning.
+/// For gz/bz2/xz/zst, returns the outer layer only (Gz, not TarGz).
+/// Use `probe_tar_inside()` separately to check for tar within compression.
+pub fn sniff_outer(path: &Path) -> Option<ArchiveFormat> {
+    let mut buf = [0u8; 262];
+    let n = {
+        use std::io::Read;
+        let mut f = std::fs::File::open(path).ok()?;
+        f.read(&mut buf).ok()?
+    };
+    if n < 2 {
+        return None;
+    }
+
+    if n >= 7 && buf[..7] == *b"Rar!\x1a\x07\x01" {
+        return Some(ArchiveFormat::Rar);
+    }
+    if n >= 6 && buf[..6] == *b"Rar!\x1a\x07" {
+        return Some(ArchiveFormat::Rar);
+    }
+    if n >= 6 && buf[..6] == [0xFD, b'7', b'z', b'X', b'Z', 0x00] {
+        return Some(ArchiveFormat::Xz);
+    }
+    if n >= 6 && buf[..6] == [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C] {
+        return Some(ArchiveFormat::SevenZ);
+    }
+    if n >= 4 && buf[..4] == *b"PK\x03\x04" {
+        return Some(ArchiveFormat::Zip);
+    }
+    if n >= 4 && buf[..4] == [0x28, 0xB5, 0x2F, 0xFD] {
+        return Some(ArchiveFormat::Zst);
+    }
+    if n >= 3 && buf[..3] == *b"BZh" {
+        return Some(ArchiveFormat::Bz2);
+    }
+    if n >= 2 && buf[..2] == [0x1F, 0x8B] {
+        return Some(ArchiveFormat::Gz);
+    }
+    if n >= 262 && &buf[257..262] == b"ustar" {
+        return Some(ArchiveFormat::Tar);
+    }
+    if let Ok(true) = check_iso(path) {
+        return Some(ArchiveFormat::Iso);
+    }
+    None
+}
+
+/// Decompress the first 262 bytes with the given tool and check for tar magic.
+/// Returns false if the tool is not available or decompression fails.
+pub fn probe_tar_inside(path: &Path, tool: &str, args: &[&str]) -> bool {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+
+    let child = Command::new(tool)
+        .args(args)
+        .arg(path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn();
+
+    let mut child = match child {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+
+    let mut buf = [0u8; 262];
+    let mut filled = 0;
+    if let Some(stdout) = child.stdout.as_mut() {
+        while filled < buf.len() {
+            match stdout.read(&mut buf[filled..]) {
+                Ok(0) => break,   // EOF
+                Ok(n) => filled += n,
+                Err(_) => break,
+            }
+        }
+    }
+
+    let _ = child.kill();
+    let _ = child.wait();
+
+    filled >= 262 && &buf[257..262] == b"ustar"
+}
+
+fn check_iso(path: &Path) -> std::io::Result<bool> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = std::fs::File::open(path)?;
+    f.seek(SeekFrom::Start(32769))?;
+    let mut magic = [0u8; 5];
+    f.read_exact(&mut magic)?;
+    Ok(&magic == b"CD001")
+}
+
 /// Derive the "stem" used as default output directory/filename.
 ///
 /// - `foo.tar.gz` → `foo`
@@ -112,7 +224,14 @@ pub fn archive_stem(path: &Path, format: ArchiveFormat) -> String {
             return name[..name.len() - ext.len()].to_string();
         }
     }
-    name.to_string()
+    // Extension didn't match (e.g. --format gz on mystery.bin).
+    // For single-file formats, returning the original name would make
+    // dest == source. Append ".out" to avoid self-targeting.
+    if format.is_multi_file() {
+        name.to_string()
+    } else {
+        format!("{name}.out")
+    }
 }
 
 #[cfg(test)]
@@ -211,6 +330,25 @@ mod tests {
             let p = PathBuf::from(name);
             assert_eq!(archive_stem(&p, fmt), expected, "failed for {name}");
         }
+    }
+
+    #[test]
+    fn stem_mismatched_extension_single_file() {
+        // When extension doesn't match format, single-file must not return
+        // the original name (that would make dest == source).
+        let p = PathBuf::from("mystery.bin");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Gz), "mystery.bin.out");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Bz2), "mystery.bin.out");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Xz), "mystery.bin.out");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Zst), "mystery.bin.out");
+    }
+
+    #[test]
+    fn stem_mismatched_extension_multi_file() {
+        // Multi-file formats can safely use the original name as a directory.
+        let p = PathBuf::from("mystery.bin");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Zip), "mystery.bin");
+        assert_eq!(archive_stem(&p, ArchiveFormat::TarGz), "mystery.bin");
     }
 
     /// If a new variant is added to ArchiveFormat but not to ALL,

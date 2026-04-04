@@ -4,9 +4,11 @@
 
 English | [中文](README.zh-cn.md)
 
-`unpack` is a command-line tool written in Rust. It detects the archive format automatically and calls the right system tool to extract it.
+Header-based universal archive unpacker.
 
-No more remembering `tar -xzf` vs `unzip -d` vs `7z x -o`. Just `unpack <file>`.
+`unpack` is a command-line tool written in Rust. It identifies the archive format from file headers and calls the right system tool to extract it.
+
+No need to remember whether to use `tar`, `unzip`, or `7z`, or what `-xzf`, `-xJf`, `-d`, `-o` means for which tool. Just `unpack <file>` and it handles the rest.
 
 ## Install
 
@@ -21,22 +23,26 @@ See [homebrew-tap](https://github.com/ChunzhengLab/homebrew-tap) for details.
 
 ```
 unpack [OPTIONS] <ARCHIVE> [DEST]
+unpack sniff <FILE>...
 unpack list <ARCHIVE>
 ```
 
-The simplest usage is `unpack <file>`. Format is detected from the file extension, and an output directory is created automatically.
+The simplest usage is `unpack <file>`. Format is auto-detected from the file header first, then extension as fallback.
 
 ## Examples
 
 ```sh
 unpack project.tar.gz              # → ./project/
 unpack archive.zip -C /tmp         # → /tmp/archive/
-unpack project.tar.gz --here       # extract into current directory
+unpack mystery.bin                 # auto-detect from file header
+unpack sniff mystery.bin           # what format is this file?
 unpack list project.tar.gz         # preview contents without extracting
 unpack -l project.tar.gz           # same as above
+unpack project.tar.gz --here       # extract into current directory
 unpack -o project.tar.gz           # allow overwriting existing files
 unpack --dry-run project.tar.gz    # show what would happen, don't extract
 unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
+unpack --format tar.gz mystery.bin # override all detection
 ```
 
 ## Options
@@ -45,6 +51,7 @@ unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
 -C, --into <DIR>         Extract into specified directory
     --here               Extract into current directory (no subdirectory)
 -o, --overwrite          Allow overwriting existing files
+    --format <FMT>       Override format detection (e.g. tar.gz, zip, 7z)
     --strip-components N Strip N leading path components (tar only)
     --dry-run            Show what would happen without extracting
 -v, --verbose            Show detailed output
@@ -75,3 +82,4 @@ unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
 - **No overwrite**: refuses to extract when the target already exists. Use `-o` to override.
 - **Path safety warnings**: entries containing `..` or absolute paths trigger a warning on stderr.
 - **Missing tool reporting**: clear error message naming the missing tool and the format it handles.
+- **Header sniffing**: `unpack` reads the file header to identify the format, even when the extension is wrong or missing. For compressed streams (`.gz`, `.bz2`, etc.), it probes inside to detect tarballs. Use `unpack sniff <file>` to see what the header says.

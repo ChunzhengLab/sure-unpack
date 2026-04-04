@@ -4,9 +4,9 @@
 
 [English](README.md) | 中文
 
-`unpack` 是一个用 Rust 编写的命令行工具。它自动识别归档格式，调用系统中已安装的解压工具完成解包。
+`unpack` 是一个用 Rust 编写的命令行工具。它基于文件头自动识别归档格式，调用系统中已安装的对应解压工具完成解包。
 
-不用再记 `tar -xzf`、`unzip -d`、`7z x -o` 之间的差异，一个 `unpack <file>` 就够了。
+不用再纠结该调 `tar`、`unzip` 还是 `7z`，也不用记 `-xzf`、`-xJf`、`-d`、`-o` 分别对应哪个工具。`unpack <file>` 自动处理一切。
 
 ## 安装
 
@@ -21,22 +21,26 @@ brew install unpack
 
 ```
 unpack [选项] <归档文件> [目标目录]
+unpack sniff <文件>...
 unpack list <归档文件>
 ```
 
-最简单的用法是 `unpack <file>`，格式从扩展名自动识别，输出目录自动创建。
+最简单的用法是 `unpack <file>`，格式优先从文件头自动识别，扩展名作为后备。
 
 ## 示例
 
 ```sh
 unpack project.tar.gz              # → ./project/
 unpack archive.zip -C /tmp         # → /tmp/archive/
-unpack project.tar.gz --here       # 解压到当前目录，不建子目录
+unpack mystery.bin                 # 自动识别文件头
+unpack sniff mystery.bin           # 这个文件是什么格式？
 unpack list project.tar.gz         # 预览内容，不解压
 unpack -l project.tar.gz           # 同上
+unpack project.tar.gz --here       # 解压到当前目录，不建子目录
 unpack -o project.tar.gz           # 允许覆盖已有文件
 unpack --dry-run project.tar.gz    # 预演，不实际解压
 unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
+unpack --format tar.gz mystery.bin # 覆盖所有检测，手动指定
 ```
 
 ## 选项
@@ -45,6 +49,7 @@ unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 -C, --into <DIR>         解压到指定目录
     --here               解压到当前目录，不自动建子目录
 -o, --overwrite          允许覆盖已有文件
+    --format <FMT>       手动指定格式（如 tar.gz、zip、7z）
     --strip-components N 去掉前 N 层路径（仅限 tar）
     --dry-run            预演，不实际解压
 -v, --verbose            显示详细输出
@@ -75,3 +80,4 @@ unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 - **拒绝覆盖**：目标已存在时拒绝解压，避免意外覆盖。使用 `-o` 可强制覆盖。
 - **路径安全警告**：归档中包含 `..` 或绝对路径的条目会在 stderr 输出警告。
 - **缺少工具时明确报错**：提示缺少哪个工具以及它对应哪种格式。
+- **文件头探测**：`unpack` 通过读取文件头来识别格式，即使扩展名错误或缺失也能正确处理。对于压缩流（`.gz`、`.bz2` 等），还会探测内部是否包含 tar 归档。使用 `unpack sniff <file>` 可以单独查看文件头识别结果。
