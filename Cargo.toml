@@ -3,6 +3,6 @@ name = "sure-unpack"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "One command to unpack them all"
+description = "Universal archive unpacker that auto-detects format and calls the right tool"
 
 [dependencies]
