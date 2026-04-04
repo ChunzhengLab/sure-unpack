@@ -28,7 +28,7 @@ impl Backend {
             | ArchiveFormat::TarXz
             | ArchiveFormat::TarZst => Backend::Tar,
             ArchiveFormat::Zip => Backend::Zip,
-            ArchiveFormat::SevenZ => Backend::SevenZ,
+            ArchiveFormat::SevenZ | ArchiveFormat::Rar | ArchiveFormat::Iso => Backend::SevenZ,
             ArchiveFormat::Gz => Backend::Gunzip,
             ArchiveFormat::Bz2 => Backend::Bunzip2,
             ArchiveFormat::Xz => Backend::Xz,

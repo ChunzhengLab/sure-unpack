@@ -35,6 +35,7 @@ unpack project.tar.gz --here       # 解压到当前目录，不建子目录
 unpack list project.tar.gz         # 预览内容，不解压
 unpack -l project.tar.gz           # 同上
 unpack -o project.tar.gz           # 允许覆盖已有文件
+unpack --dry-run project.tar.gz    # 预演，不实际解压
 unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 ```
 
@@ -45,6 +46,7 @@ unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
     --here               解压到当前目录，不自动建子目录
 -o, --overwrite          允许覆盖已有文件
     --strip-components N 去掉前 N 层路径（仅限 tar）
+    --dry-run            预演，不实际解压
 -v, --verbose            显示详细输出
 -l, --list               等同于 unpack list
     --help               显示帮助
@@ -58,6 +60,8 @@ unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 | `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` `.txz` `.tar.zst` | `tar` | 支持 `--strip-components` |
 | `.zip` | `unzip` | |
 | `.7z` | `7z` / `7zz` | |
+| `.rar` | `7z` / `7zz` | |
+| `.iso` | `7z` / `7zz` | |
 | `.gz` | `gunzip` | 单文件解压 |
 | `.bz2` | `bunzip2` | 单文件解压 |
 | `.xz` | `xz` | 单文件解压 |

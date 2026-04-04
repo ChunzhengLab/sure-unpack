@@ -450,3 +450,96 @@ fn strip_components_no_overwrite() {
     let content = fs::read_to_string(work.join("hello.txt")).unwrap();
     assert_eq!(content, "old\n");
 }
+
+#[test]
+fn dry_run_no_extract() {
+    if !has_tool("tar") {
+        return;
+    }
+    let dir = temp_dir("dry-run-no-extract");
+    let archive = create_tar_gz(&dir);
+    let work = dir.join("work");
+    fs::create_dir_all(&work).unwrap();
+
+    let output = sure_unpack()
+        .arg("--dry-run")
+        .arg(&archive)
+        .current_dir(&work)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("backend:"));
+    assert!(stdout.contains("dest:"));
+    assert!(stdout.contains("tool:      found"));
+    assert!(stdout.contains("conflicts: none"));
+
+    // Nothing should be extracted
+    assert!(!work.join("test").exists());
+}
+
+#[test]
+fn dry_run_with_conflict() {
+    if !has_tool("tar") {
+        return;
+    }
+    let dir = temp_dir("dry-run-conflict");
+    let archive = create_tar_gz(&dir);
+    let work = dir.join("work");
+    fs::create_dir_all(work.join("mydir")).unwrap();
+    fs::write(work.join("mydir/hello.txt"), "old").unwrap();
+
+    // --dry-run --here: should detect conflict and exit non-zero
+    let output = sure_unpack()
+        .arg("--dry-run")
+        .arg("--here")
+        .arg(&archive)
+        .current_dir(&work)
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("conflicts: 1"));
+}
+
+#[test]
+fn dry_run_missing_tool_single() {
+    let dir = temp_dir("dry-run-no-tool-single");
+    let f = dir.join("data.txt.gz");
+    fs::write(&f, "fake").unwrap();
+
+    let output = sure_unpack()
+        .arg("--dry-run")
+        .arg(&f)
+        .env("PATH", "")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("tool:      NOT FOUND"));
+}
+
+#[test]
+fn dry_run_missing_tool_multi() {
+    if !has_tool("tar") {
+        return;
+    }
+    let dir = temp_dir("dry-run-no-tool-multi");
+    let archive = create_tar_gz(&dir);
+
+    // Empty PATH: tar not found, dry-run should still print summary
+    let output = sure_unpack()
+        .arg("--dry-run")
+        .arg(&archive)
+        .env("PATH", "")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("tool:      NOT FOUND"));
+    assert!(stdout.contains("backend:   tar"));
+}

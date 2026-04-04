@@ -58,33 +58,74 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         )));
     }
 
+    // Check tool availability early — dry-run needs the result, normal path needs the error
+    let tool_ok = backend.ensure_tool(fmt).is_ok();
+    if !opts.dry_run && !tool_ok {
+        // Re-call to get the actual error
+        backend.ensure_tool(fmt)?;
+    }
+
     let dest = resolve_dest(&opts, archive, fmt);
 
     // For multi-file archives: list for safety scan + pre-flight overwrite check
-    if fmt.is_multi_file() {
+    // (only possible when tool is available)
+    let mut conflicts = Vec::new();
+    if fmt.is_multi_file() && tool_ok {
         let entries = backend.list(archive, fmt)?;
         let warnings = safety::check_entries(&entries);
         safety::print_warnings(&warnings);
 
-        // Pre-flight: if dest exists and !overwrite, check for member file conflicts.
-        // This replaces fragile backend-level flags (tar -k) with an explicit check.
-        if !opts.overwrite
-            && dest.exists()
-            && let Some(conflict) = find_member_conflict(&entries, &dest, opts.strip_components)
-        {
-            return Err(Error::DestinationExists(conflict));
+        if !opts.overwrite && dest.exists() {
+            conflicts = find_member_conflicts(&entries, &dest, opts.strip_components);
+            if !opts.dry_run
+                && let Some(first) = conflicts.first()
+            {
+                return Err(Error::DestinationExists(first.clone()));
+            }
         }
     }
 
     // For auto-created subdirectories: refuse if the directory already exists
     let is_auto_subdir = opts.dest.is_none() && opts.into.is_none() && !opts.here;
     if !opts.overwrite && is_auto_subdir && dest.exists() {
-        return Err(Error::DestinationExists(dest));
+        if opts.dry_run {
+            conflicts.push(dest.clone());
+        } else {
+            return Err(Error::DestinationExists(dest));
+        }
     }
 
     // Single-file: refuse if output file already exists
     if !fmt.is_multi_file() && !opts.overwrite && dest.exists() {
-        return Err(Error::DestinationExists(dest));
+        if opts.dry_run {
+            conflicts.push(dest.clone());
+        } else {
+            return Err(Error::DestinationExists(dest));
+        }
+    }
+
+    if opts.dry_run {
+        println!("archive:   {}", archive.display());
+        println!("format:    {}", fmt.extensions()[0]);
+        println!("backend:   {}", backend.tool_name());
+        println!("tool:      {}", if tool_ok { "found" } else { "NOT FOUND" });
+        println!("dest:      {}", dest.display());
+        if opts.strip_components > 0 {
+            println!("strip:     {} components", opts.strip_components);
+        }
+        if conflicts.is_empty() {
+            println!("conflicts: none");
+        } else {
+            println!("conflicts: {}", conflicts.len());
+            for c in &conflicts {
+                println!("  {}", c.display());
+            }
+        }
+
+        if !tool_ok || !conflicts.is_empty() {
+            std::process::exit(1);
+        }
+        return Ok(());
     }
 
     if fmt.is_multi_file() {
@@ -108,15 +149,14 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
     Ok(())
 }
 
-/// Check if any archive member would overwrite an existing file under dest.
-/// Only flags files, not directories — a directory existing at the target
-/// is expected and not a conflict.
-fn find_member_conflict(
+/// Check which archive member files already exist under dest.
+fn find_member_conflicts(
     entries: &[String],
     dest: &Path,
     strip_components: u32,
-) -> Option<std::path::PathBuf> {
+) -> Vec<std::path::PathBuf> {
     let strip = strip_components as usize;
+    let mut conflicts = Vec::new();
     for entry in entries {
         let stripped = if strip > 0 {
             let components: Vec<&str> = entry.split('/').collect();
@@ -132,10 +172,10 @@ fn find_member_conflict(
         }
         let target = dest.join(&stripped);
         if target.is_file() {
-            return Some(target);
+            conflicts.push(target);
         }
     }
-    None
+    conflicts
 }
 
 fn resolve_dest(

@@ -11,6 +11,8 @@ pub enum ArchiveFormat {
     TarZst,
     Zip,
     SevenZ,
+    Rar,
+    Iso,
     Gz,
     Bz2,
     Xz,
@@ -27,6 +29,8 @@ impl ArchiveFormat {
         ArchiveFormat::Tar,
         ArchiveFormat::Zip,
         ArchiveFormat::SevenZ,
+        ArchiveFormat::Rar,
+        ArchiveFormat::Iso,
         ArchiveFormat::Gz,
         ArchiveFormat::Bz2,
         ArchiveFormat::Xz,
@@ -43,6 +47,8 @@ impl ArchiveFormat {
             ArchiveFormat::TarZst => &[".tar.zst"],
             ArchiveFormat::Zip => &[".zip"],
             ArchiveFormat::SevenZ => &[".7z"],
+            ArchiveFormat::Rar => &[".rar"],
+            ArchiveFormat::Iso => &[".iso"],
             ArchiveFormat::Gz => &[".gz"],
             ArchiveFormat::Bz2 => &[".bz2"],
             ArchiveFormat::Xz => &[".xz"],
@@ -61,6 +67,8 @@ impl ArchiveFormat {
                 | ArchiveFormat::TarZst
                 | ArchiveFormat::Zip
                 | ArchiveFormat::SevenZ
+                | ArchiveFormat::Rar
+                | ArchiveFormat::Iso
         )
     }
 }
@@ -135,6 +143,8 @@ mod tests {
         let cases = [
             ("archive.zip", ArchiveFormat::Zip),
             ("data.7z", ArchiveFormat::SevenZ),
+            ("archive.rar", ArchiveFormat::Rar),
+            ("disc.iso", ArchiveFormat::Iso),
             ("file.gz", ArchiveFormat::Gz),
             ("file.bz2", ArchiveFormat::Bz2),
             ("file.xz", ArchiveFormat::Xz),
@@ -216,15 +226,15 @@ mod tests {
                 | ArchiveFormat::TarZst
                 | ArchiveFormat::Zip
                 | ArchiveFormat::SevenZ
+                | ArchiveFormat::Rar
+                | ArchiveFormat::Iso
                 | ArchiveFormat::Gz
                 | ArchiveFormat::Bz2
                 | ArchiveFormat::Xz
                 | ArchiveFormat::Zst => {}
             }
         }
-        // Also verify count: if a variant is in the enum but missing from ALL,
-        // detect() won't find it. This count must match the enum.
-        assert_eq!(ArchiveFormat::ALL.len(), 11);
+        assert_eq!(ArchiveFormat::ALL.len(), 13);
     }
 
     #[test]

@@ -35,6 +35,7 @@ unpack project.tar.gz --here       # extract into current directory
 unpack list project.tar.gz         # preview contents without extracting
 unpack -l project.tar.gz           # same as above
 unpack -o project.tar.gz           # allow overwriting existing files
+unpack --dry-run project.tar.gz    # show what would happen, don't extract
 unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
 ```
 
@@ -45,6 +46,7 @@ unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
     --here               Extract into current directory (no subdirectory)
 -o, --overwrite          Allow overwriting existing files
     --strip-components N Strip N leading path components (tar only)
+    --dry-run            Show what would happen without extracting
 -v, --verbose            Show detailed output
 -l, --list               Same as 'unpack list'
     --help               Show this help
@@ -58,6 +60,8 @@ unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
 | `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` `.txz` `.tar.zst` | `tar` | Supports `--strip-components` |
 | `.zip` | `unzip` | |
 | `.7z` | `7z` / `7zz` | |
+| `.rar` | `7z` / `7zz` | |
+| `.iso` | `7z` / `7zz` | |
 | `.gz` | `gunzip` | Single-file decompression |
 | `.bz2` | `bunzip2` | Single-file decompression |
 | `.xz` | `xz` | Single-file decompression |

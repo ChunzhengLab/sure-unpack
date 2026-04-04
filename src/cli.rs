@@ -20,6 +20,7 @@ OPTIONS:
         --here               Extract into current directory (no subdirectory)
     -o, --overwrite          Allow overwriting existing files
         --strip-components N Strip N leading path components (tar only)
+        --dry-run            Show what would happen without extracting
     -v, --verbose            Show detailed output
     -l, --list               Same as 'unpack list'
         --help               Show this help
@@ -39,6 +40,7 @@ pub struct ExtractOpts {
     pub here: bool,
     pub overwrite: bool,
     pub strip_components: u32,
+    pub dry_run: bool,
     pub verbose: bool,
 }
 
@@ -60,6 +62,7 @@ where
     let mut here = false;
     let mut overwrite = false;
     let mut strip_components: u32 = 0;
+    let mut dry_run = false;
     let mut verbose = false;
     let mut positionals: Vec<String> = Vec::new();
 
@@ -99,6 +102,9 @@ where
                     Error::Usage(format!("--strip-components: invalid number '{val}'"))
                 })?;
             }
+            "--dry-run" => {
+                dry_run = true;
+            }
             "-v" | "--verbose" => {
                 verbose = true;
             }
@@ -131,6 +137,7 @@ where
         here,
         overwrite,
         strip_components,
+        dry_run,
         verbose,
     })))
 }
