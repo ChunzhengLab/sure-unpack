@@ -237,9 +237,15 @@ pub fn archive_stem(path: &Path, format: ArchiveFormat) -> String {
             return name[..name.len() - ext.len()].to_string();
         }
     }
-    // Extension didn't match (e.g. --format gz on mystery.bin).
-    // For single-file formats, returning the original name would make
-    // dest == source. Append ".out" to avoid self-targeting.
+    // Extension didn't match the detected/overridden format (e.g. tests.iso
+    // detected as zip, or --format gz on mystery.bin). Strip whatever extension
+    // the file actually has to avoid dest == source.
+    if let Some(dot) = name.rfind('.')
+        && dot > 0
+    {
+        return name[..dot].to_string();
+    }
+    // No extension at all — append .out for single-file, use name for multi-file dir
     if format.is_multi_file() {
         name.to_string()
     } else {
@@ -346,22 +352,25 @@ mod tests {
     }
 
     #[test]
-    fn stem_mismatched_extension_single_file() {
-        // When extension doesn't match format, single-file must not return
-        // the original name (that would make dest == source).
+    fn stem_mismatched_extension() {
+        // When format extension doesn't match, strip the file's own extension.
+        // This prevents dest == source (e.g. tests.iso detected as zip).
         let p = PathBuf::from("mystery.bin");
-        assert_eq!(archive_stem(&p, ArchiveFormat::Gz), "mystery.bin.out");
-        assert_eq!(archive_stem(&p, ArchiveFormat::Bz2), "mystery.bin.out");
-        assert_eq!(archive_stem(&p, ArchiveFormat::Xz), "mystery.bin.out");
-        assert_eq!(archive_stem(&p, ArchiveFormat::Zst), "mystery.bin.out");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Gz), "mystery");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Zip), "mystery");
+        assert_eq!(archive_stem(&p, ArchiveFormat::TarGz), "mystery");
+
+        // Real-world case: .iso file that's actually a .zip
+        let p = PathBuf::from("tests.iso");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Zip), "tests");
     }
 
     #[test]
-    fn stem_mismatched_extension_multi_file() {
-        // Multi-file formats can safely use the original name as a directory.
-        let p = PathBuf::from("mystery.bin");
-        assert_eq!(archive_stem(&p, ArchiveFormat::Zip), "mystery.bin");
-        assert_eq!(archive_stem(&p, ArchiveFormat::TarGz), "mystery.bin");
+    fn stem_no_extension() {
+        // No extension at all
+        let p = PathBuf::from("noext");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Zip), "noext");
+        assert_eq!(archive_stem(&p, ArchiveFormat::Gz), "noext.out");
     }
 
     /// If a new variant is added to ArchiveFormat but not to ALL,

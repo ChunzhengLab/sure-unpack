@@ -567,8 +567,8 @@ fn format_override_extract() {
         .output()
         .unwrap();
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
-    // stem is "mystery.bin" (extension doesn't match tar.gz, so nothing stripped)
-    assert!(work.join("mystery.bin/mydir/hello.txt").exists());
+    // stem is "mystery" (strip .bin since .tar.gz doesn't match)
+    assert!(work.join("mystery/mydir/hello.txt").exists());
 }
 
 #[test]
@@ -615,7 +615,7 @@ fn sniff_detects_tar_gz() {
         .output()
         .unwrap();
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
-    assert!(work.join("mystery.bin/mydir/hello.txt").exists());
+    assert!(work.join("mystery/mydir/hello.txt").exists());
 }
 
 #[test]
@@ -638,7 +638,7 @@ fn sniff_fallback_zip() {
         .output()
         .unwrap();
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
-    assert!(work.join("mystery.bin/mydir/hello.txt").exists());
+    assert!(work.join("mystery/mydir/hello.txt").exists());
 }
 
 #[test]
