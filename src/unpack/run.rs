@@ -63,26 +63,44 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         return Err(tool_result.unwrap_err());
     }
 
-    let dest = resolve_dest(&opts, archive, fmt);
-
-    let mut conflicts = Vec::new();
+    // For multi-file archives: list first, then decide dest
+    let mut entries: Option<Vec<String>> = None;
+    let mut is_single_root_file = false;
     if fmt.is_multi_file() && tool_ok {
-        let entries = backend.list(archive, fmt)?;
-        let warnings = safety::check_entries(&entries);
+        let listing = backend.list(archive, fmt)?;
+        let warnings = safety::check_entries(&listing);
         safety::print_warnings(&warnings);
 
-        if !opts.overwrite && dest.exists() {
-            conflicts = find_member_conflicts(&entries, &dest, opts.strip_components);
-            if !opts.dry_run
-                && let Some(first) = conflicts.first()
-            {
-                return Err(Error::DestinationExists(first.clone()));
-            }
+        // A zip/7z with a single root-level file should extract directly,
+        // not into a subdirectory. This makes pack→unpack round-trip clean.
+        let root_files: Vec<_> = listing
+            .iter()
+            .filter(|e| !e.ends_with('/') && !e.contains('/'))
+            .collect();
+        is_single_root_file = root_files.len() == 1 && listing.iter().all(|e| !e.contains('/'));
+
+        entries = Some(listing);
+    }
+
+    // If single root file and user didn't specify dest, behave like --here
+    let effective_here = opts.here || (is_single_root_file && opts.dest.is_none() && opts.into.is_none());
+    let dest = resolve_dest(&opts, archive, fmt, effective_here);
+
+    let mut conflicts = Vec::new();
+    if let Some(ref listing) = entries
+        && !opts.overwrite
+        && dest.exists()
+    {
+        conflicts = find_member_conflicts(listing, &dest, opts.strip_components);
+        if !opts.dry_run
+            && let Some(first) = conflicts.first()
+        {
+            return Err(Error::DestinationExists(first.clone()));
         }
     }
 
     let is_auto_subdir =
-        fmt.is_multi_file() && opts.dest.is_none() && opts.into.is_none() && !opts.here;
+        fmt.is_multi_file() && !is_single_root_file && opts.dest.is_none() && opts.into.is_none() && !opts.here;
     if !opts.overwrite && is_auto_subdir && dest.exists() {
         if opts.dry_run {
             conflicts.push(dest.clone());
@@ -125,8 +143,10 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         return Ok(());
     }
 
-    if fmt.is_multi_file() {
+    if fmt.is_multi_file() && !is_single_root_file {
         std::fs::create_dir_all(&dest)?;
+    } else if fmt.is_multi_file() && is_single_root_file {
+        // dest is "." — already exists, no mkdir needed
     } else if let Some(parent) = dest.parent()
         && !parent.exists()
     {
@@ -267,6 +287,7 @@ fn resolve_dest(
     opts: &cli::ExtractOpts,
     archive: &Path,
     fmt: ArchiveFormat,
+    here: bool,
 ) -> std::path::PathBuf {
     if let Some(ref d) = opts.dest {
         return d.clone();
@@ -274,7 +295,7 @@ fn resolve_dest(
     if let Some(ref d) = opts.into {
         return d.join(format::archive_stem(archive, fmt));
     }
-    if opts.here && fmt.is_multi_file() {
+    if here && fmt.is_multi_file() {
         return std::path::PathBuf::from(".");
     }
     std::path::PathBuf::from(format::archive_stem(archive, fmt))
