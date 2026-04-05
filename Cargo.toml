@@ -1,12 +1,20 @@
 [package]
 name = "sure-unpack"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 license = "MIT"
-description = "Universal archive unpacker that auto-detects format and calls the right tool"
+description = "Header-based universal archive unpacker and packer"
+
+[lib]
+name = "sure_unpack"
+path = "src/lib.rs"
 
 [[bin]]
 name = "unpack"
-path = "src/main.rs"
+path = "src/bin/unpack.rs"
+
+[[bin]]
+name = "pack"
+path = "src/bin/pack.rs"
 
 [dependencies]

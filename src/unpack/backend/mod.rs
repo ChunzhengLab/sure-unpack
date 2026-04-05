@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::Error;
 use crate::format::ArchiveFormat;
+use crate::tool;
 
 mod seven_z;
 mod single;
@@ -52,35 +53,16 @@ impl Backend {
         matches!(self, Backend::Tar)
     }
 
-    /// Assert the backend tool is installed and return its full path.
     pub fn ensure_tool(&self, format: ArchiveFormat) -> Result<PathBuf, Error> {
-        let tool = self.tool_name();
-        let candidates: Vec<&str> = match self {
-            Backend::SevenZ => vec!["7z", "7zz"],
-            _ => vec![tool],
-        };
-
-        let path_var = std::env::var("PATH").unwrap_or_default();
-        for dir in path_var.split(':') {
-            for name in &candidates {
-                let candidate = Path::new(dir).join(name);
-                if candidate.is_file() {
-                    return Ok(candidate);
-                }
-            }
-        }
-
-        Err(Error::MissingTool { tool, format })
+        tool::ensure_for(format)
     }
 
-    /// List archive contents. Returns lines of filenames.
     pub fn list(
         &self,
         archive: &Path,
         format: ArchiveFormat,
     ) -> Result<Vec<String>, Error> {
         match self {
-            // Single-file list is pure logic — no tool needed
             Backend::Gunzip | Backend::Bunzip2 | Backend::Xz | Backend::Zstd => {
                 single::list(archive, format)
             }
@@ -96,7 +78,6 @@ impl Backend {
         }
     }
 
-    /// Extract archive to destination directory/file.
     pub fn extract(
         &self,
         archive: &Path,

@@ -1,17 +1,13 @@
-mod backend;
-mod cli;
-mod error;
-mod format;
-mod safety;
-
 use std::path::Path;
 
-use backend::Backend;
-use cli::Command;
-use error::Error;
-use format::ArchiveFormat;
+use crate::error::Error;
+use crate::format::{self, ArchiveFormat};
 
-fn run() -> Result<(), Error> {
+use super::backend::Backend;
+use super::cli::{self, Command};
+use super::safety;
+
+pub fn run() -> Result<(), Error> {
     let cmd = match cli::parse(std::env::args())? {
         Some(cmd) => cmd,
         None => return Ok(()),
@@ -61,9 +57,10 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         )));
     }
 
-    let tool_ok = backend.ensure_tool(fmt).is_ok();
+    let tool_result = backend.ensure_tool(fmt);
+    let tool_ok = tool_result.is_ok();
     if !opts.dry_run && !tool_ok {
-        backend.ensure_tool(fmt)?;
+        return Err(tool_result.unwrap_err());
     }
 
     let dest = resolve_dest(&opts, archive, fmt);
@@ -119,8 +116,11 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
                 println!("  {}", c.display());
             }
         }
-        if !tool_ok || !conflicts.is_empty() {
-            std::process::exit(1);
+        if !tool_ok {
+            return Err(tool_result.unwrap_err());
+        }
+        if !conflicts.is_empty() {
+            return Err(Error::DestinationExists(conflicts[0].clone()));
         }
         return Ok(());
     }
@@ -154,21 +154,11 @@ fn do_sniff(paths: &[std::path::PathBuf]) -> Result<(), Error> {
         }
     }
     if any_fail {
-        std::process::exit(1);
+        return Err(Error::Usage("some files could not be identified".into()));
     }
     Ok(())
 }
 
-// --- Format resolution ---
-
-/// The decision chain:
-/// 1. --format → use it
-/// 2. sniff_outer (15us) → zip/7z/rar/tar/iso → use it
-/// 3. sniff_outer → gz/bz2/xz/zst:
-///    a. extension is matching .tar.* → use tar variant (skip probe)
-///    b. else → probe_tar_inside (1.5ms)
-/// 4. sniff_outer → None → fall back to extension
-/// 5. nothing → error
 fn resolve_format(
     archive: &Path,
     format_override: &Option<String>,
@@ -182,7 +172,6 @@ fn resolve_format(
     let ext = format::detect(archive).ok();
 
     match sniffed {
-        // Definitive formats — sniff is ground truth
         Some(
             fmt @ (ArchiveFormat::Zip
             | ArchiveFormat::SevenZ
@@ -191,24 +180,19 @@ fn resolve_format(
             | ArchiveFormat::Iso),
         ) => Ok(fmt),
 
-        // Stream compression — might be tar inside
         Some(outer @ (ArchiveFormat::Gz | ArchiveFormat::Bz2 | ArchiveFormat::Xz | ArchiveFormat::Zst)) => {
-            // If extension already says tar.*, trust it (skip 1.5ms probe)
             if let Some(ext_fmt) = ext
                 && is_tar_variant_of(ext_fmt, outer)
             {
                 return Ok(ext_fmt);
             }
-            // Otherwise probe to check for tar inside
             Ok(upgrade_to_tar(archive, outer))
         }
 
-        // sniff can't tell (e.g. old tar without ustar, or truly unknown)
         _ => ext.ok_or_else(|| Error::UnknownFormat(archive.to_path_buf())),
     }
 }
 
-/// Full sniff for the `sniff` subcommand: sniff_outer + probe, no extension.
 fn sniff_full(path: &Path) -> Option<ArchiveFormat> {
     let outer = format::sniff_outer(path)?;
     match outer {
@@ -219,7 +203,6 @@ fn sniff_full(path: &Path) -> Option<ArchiveFormat> {
     }
 }
 
-/// Check if ext_fmt is the tar variant of the given outer compression.
 fn is_tar_variant_of(ext: ArchiveFormat, outer: ArchiveFormat) -> bool {
     matches!(
         (ext, outer),
@@ -230,7 +213,6 @@ fn is_tar_variant_of(ext: ArchiveFormat, outer: ArchiveFormat) -> bool {
     )
 }
 
-/// Try to upgrade a stream compression format to its tar variant via probe.
 fn upgrade_to_tar(path: &Path, outer: ArchiveFormat) -> ArchiveFormat {
     let (tool, args): (&str, &[&str]) = match outer {
         ArchiveFormat::Gz => ("gunzip", &["-c"]),
@@ -252,8 +234,6 @@ fn upgrade_to_tar(path: &Path, outer: ArchiveFormat) -> ArchiveFormat {
         outer
     }
 }
-
-// --- Helpers ---
 
 fn find_member_conflicts(
     entries: &[String],
@@ -298,11 +278,4 @@ fn resolve_dest(
         return std::path::PathBuf::from(".");
     }
     std::path::PathBuf::from(format::archive_stem(archive, fmt))
-}
-
-fn main() {
-    if let Err(e) = run() {
-        eprintln!("unpack: {e}");
-        std::process::exit(e.exit_code());
-    }
 }

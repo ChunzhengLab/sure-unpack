@@ -49,7 +49,7 @@ jobs:
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           archive="sure-unpack-${tag}-${{ matrix.target }}.tar.gz"
-          tar -czf "$archive" -C "target/${{ matrix.target }}/release" unpack
+          tar -czf "$archive" -C "target/${{ matrix.target }}/release" unpack pack
           echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
 
       - name: Upload artifact
@@ -105,7 +105,7 @@ jobs:
 
           cat > Formula/unpack.rb << FORMULA
           class Unpack < Formula
-            desc "Universal archive unpacker that auto-detects format and calls the right tool"
+            desc "Universal archive packer and unpacker with header-based format detection"
             homepage "https://github.com/ChunzhengLab/sure-unpack"
             version "${version}"
             license "MIT"
@@ -136,10 +136,12 @@ jobs:
 
             def install
               bin.install "unpack"
+              bin.install "pack"
             end
 
             test do
               assert_match "unpack", shell_output("#{bin}/unpack --help")
+              assert_match "pack", shell_output("#{bin}/pack --help")
             end
           end
           FORMULA

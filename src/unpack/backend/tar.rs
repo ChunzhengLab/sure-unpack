@@ -4,20 +4,9 @@ use std::process::Command;
 use crate::error::Error;
 use crate::format::ArchiveFormat;
 
-fn compression_flags(format: ArchiveFormat) -> &'static [&'static str] {
-    match format {
-        ArchiveFormat::TarGz => &["-z"],
-        ArchiveFormat::TarBz2 => &["-j"],
-        ArchiveFormat::TarXz => &["-J"],
-        ArchiveFormat::TarZst => &["--zstd"],
-        ArchiveFormat::Tar => &[],
-        _ => &[],
-    }
-}
-
 pub fn list(tool: &Path, archive: &Path, format: ArchiveFormat) -> Result<Vec<String>, Error> {
     let mut cmd = Command::new(tool);
-    for flag in compression_flags(format) {
+    for flag in format.tar_compression_flags() {
         cmd.arg(flag);
     }
     cmd.arg("-tf").arg(archive);
@@ -38,9 +27,6 @@ pub fn list(tool: &Path, archive: &Path, format: ArchiveFormat) -> Result<Vec<St
         .collect())
 }
 
-/// Overwrite protection for tar is handled by the caller via pre-flight
-/// member check, not by tar flags. This avoids relying on `-k` behavior
-/// which varies between BSD tar and GNU tar.
 pub fn extract(
     tool: &Path,
     archive: &Path,
@@ -50,7 +36,7 @@ pub fn extract(
     verbose: bool,
 ) -> Result<(), Error> {
     let mut cmd = Command::new(tool);
-    for flag in compression_flags(format) {
+    for flag in format.tar_compression_flags() {
         cmd.arg(flag);
     }
     cmd.arg("-xf").arg(archive).arg("-C").arg(dest);
@@ -79,18 +65,4 @@ pub fn extract(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn compression_flag_mapping() {
-        assert_eq!(compression_flags(ArchiveFormat::TarGz), &["-z"]);
-        assert_eq!(compression_flags(ArchiveFormat::TarBz2), &["-j"]);
-        assert_eq!(compression_flags(ArchiveFormat::TarXz), &["-J"]);
-        assert_eq!(compression_flags(ArchiveFormat::TarZst), &["--zstd"]);
-        assert!(compression_flags(ArchiveFormat::Tar).is_empty());
-    }
 }

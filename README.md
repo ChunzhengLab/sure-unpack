@@ -4,9 +4,9 @@
 
 English | [中文](README.zh-cn.md)
 
-`unpack` is a command-line tool written in Rust. It identifies the archive format from file headers and calls the right system tool to extract it.
+Two commands for packing and unpacking archives. `unpack` identifies the format from file headers and extracts it. `pack` creates archives in the format you specify.
 
-No need to remember whether to use `tar`, `unzip`, or `7z`, or what `-xzf`, `-xJf`, `-d`, `-o` means for which tool. Just `unpack <file>` and it handles the rest.
+No need to remember whether to use `tar`, `unzip`, or `7z`, or what `-xzf`, `-xJf`, `-czf`, `-d`, `-o` means for which tool. Just `unpack <file>` and `pack <dir>`.
 
 ## Install
 
@@ -17,7 +17,7 @@ brew install unpack
 
 See [homebrew-tap](https://github.com/ChunzhengLab/homebrew-tap) for details.
 
-## Usage
+## unpack
 
 ```
 unpack [OPTIONS] <ARCHIVE> [DEST]
@@ -25,9 +25,7 @@ unpack sniff <FILE>...
 unpack list <ARCHIVE>
 ```
 
-The simplest usage is `unpack <file>`. Format is auto-detected from the file header first, then extension as fallback.
-
-## Examples
+### Examples
 
 ```sh
 unpack project.tar.gz              # → ./project/
@@ -35,15 +33,13 @@ unpack archive.zip -C /tmp         # → /tmp/archive/
 unpack mystery.bin                 # auto-detect from file header
 unpack sniff mystery.bin           # what format is this file?
 unpack list project.tar.gz         # preview contents without extracting
-unpack -l project.tar.gz           # same as above
 unpack project.tar.gz --here       # extract into current directory
-unpack -o project.tar.gz           # allow overwriting existing files
-unpack --dry-run project.tar.gz    # show what would happen, don't extract
+unpack --dry-run project.tar.gz    # show what would happen
 unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
 unpack --format tar.gz mystery.bin # override all detection
 ```
 
-## Options
+### Options
 
 ```
 -C, --into <DIR>         Extract into specified directory
@@ -54,30 +50,57 @@ unpack --format tar.gz mystery.bin # override all detection
     --dry-run            Show what would happen without extracting
 -v, --verbose            Show detailed output
 -l, --list               Same as 'unpack list'
-    --help               Show this help
-    --version            Show version
 ```
+
+## pack
+
+```
+pack [OPTIONS] <SRC> [OUT]
+```
+
+### Examples
+
+```sh
+pack mydir/                        # → mydir.zip (default format)
+pack mydir/ output.tar.gz          # format from extension
+pack mydir/ output.7z              # 7z archive
+pack file.txt output.gz            # single-file compression
+pack -f tar.gz mydir/              # explicit format
+pack --dry-run mydir/              # show what would happen
+```
+
+### Options
+
+```
+-f, --format <FMT>   Output format (e.g. zip, tar.gz, 7z)
+    --dry-run        Show what would happen without packing
+-o, --overwrite      Allow overwriting existing output file
+-v, --verbose        Show detailed output
+```
+
+### Rules
+
+- Default format is `.zip` when no output path is given
+- `--format` and output extension must agree, or an error is raised
+- Directories cannot be packed into single-file formats (`.gz`, `.bz2`, `.xz`, `.zst`) — use `.tar.gz` instead
 
 ## Supported Formats
 
-| Format | Backend | Notes |
-|--------|---------|-------|
-| `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` `.txz` `.tar.zst` | `tar` | Supports `--strip-components` |
-| `.zip` | `unzip` | |
-| `.7z` | `7z` / `7zz` | |
-| `.rar` | `7z` / `7zz` | |
-| `.iso` | `7z` / `7zz` | |
-| `.gz` | `gunzip` | Single-file decompression |
-| `.bz2` | `bunzip2` | Single-file decompression |
-| `.xz` | `xz` | Single-file decompression |
-| `.zst` | `zstd` | Single-file decompression |
-
-`unpack` does not parse archive formats itself. It delegates to system tools already installed on your machine. If a required tool is missing, it tells you exactly what to install.
+| Format | unpack | pack | Backend |
+|--------|--------|------|---------|
+| `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` `.txz` `.tar.zst` | yes | yes | `tar` |
+| `.zip` | yes | yes | `unzip` / `zip` |
+| `.7z` | yes | yes | `7z` / `7zz` |
+| `.rar` | yes | — | `7z` / `7zz` |
+| `.iso` | yes | — | `7z` / `7zz` |
+| `.gz` | yes | yes | `gunzip` / `gzip` |
+| `.bz2` | yes | yes | `bunzip2` / `bzip2` |
+| `.xz` | yes | yes | `xz` |
+| `.zst` | yes | yes | `zstd` |
 
 ## Defaults
 
-- **Auto subdirectory**: multi-file archives extract to `./<archive-stem>/`, not the current directory. Use `--here` to extract in place.
-- **No overwrite**: refuses to extract when the target already exists. Use `-o` to override.
-- **Path safety warnings**: entries containing `..` or absolute paths trigger a warning on stderr.
+- **Auto subdirectory**: `unpack` extracts multi-file archives to `./<archive-stem>/`, not the current directory.
+- **No overwrite**: both commands refuse to clobber existing files. Use `-o` to override.
+- **Header sniffing**: `unpack` reads the file header to identify the format, even when the extension is wrong or missing.
 - **Missing tool reporting**: clear error message naming the missing tool and the format it handles.
-- **Header sniffing**: `unpack` reads the file header to identify the format, even when the extension is wrong or missing. For compressed streams (`.gz`, `.bz2`, etc.), it probes inside to detect tarballs. Use `unpack sniff <file>` to see what the header says.

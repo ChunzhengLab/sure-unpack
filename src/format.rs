@@ -56,6 +56,19 @@ impl ArchiveFormat {
         }
     }
 
+    /// Tar compression flags for this format. Single source of truth
+    /// shared by both pack and unpack tar backends.
+    pub fn tar_compression_flags(&self) -> &'static [&'static str] {
+        match self {
+            ArchiveFormat::TarGz => &["-z"],
+            ArchiveFormat::TarBz2 => &["-j"],
+            ArchiveFormat::TarXz => &["-J"],
+            ArchiveFormat::TarZst => &["--zstd"],
+            ArchiveFormat::Tar => &[],
+            _ => &[],
+        }
+    }
+
     /// Whether this format is a multi-file container (vs single-file compression).
     pub fn is_multi_file(&self) -> bool {
         matches!(
