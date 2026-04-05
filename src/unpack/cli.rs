@@ -21,7 +21,6 @@ OPTIONS:
         --here               Extract into current directory (no subdirectory)
     -o, --overwrite          Allow overwriting existing files
         --format <FMT>       Override format detection (e.g. tar.gz, zip, 7z)
-        --strip-components N Strip N leading path components (tar only)
         --dry-run            Show what would happen without extracting
     -v, --verbose            Show detailed output
     -l, --list               Same as 'unpack list'
@@ -43,7 +42,6 @@ pub struct ExtractOpts {
     pub here: bool,
     pub overwrite: bool,
     pub format_override: Option<String>,
-    pub strip_components: u32,
     pub dry_run: bool,
     pub verbose: bool,
 }
@@ -68,7 +66,6 @@ where
     let mut here = false;
     let mut overwrite = false;
     let mut format_override: Option<String> = None;
-    let mut strip_components: u32 = 0;
     let mut dry_run = false;
     let mut verbose = false;
     let mut positionals: Vec<String> = Vec::new();
@@ -110,14 +107,6 @@ where
                     .ok_or_else(|| Error::Usage("--format requires a format name".into()))?;
                 format_override = Some(val);
             }
-            "--strip-components" => {
-                let val = args
-                    .next()
-                    .ok_or_else(|| Error::Usage("--strip-components requires a number".into()))?;
-                strip_components = val.parse::<u32>().map_err(|_| {
-                    Error::Usage(format!("--strip-components: invalid number '{val}'"))
-                })?;
-            }
             "--dry-run" => {
                 dry_run = true;
             }
@@ -138,14 +127,7 @@ where
     }
 
     if is_sniff {
-        if into.is_some()
-            || here
-            || overwrite
-            || format_override.is_some()
-            || strip_components > 0
-            || dry_run
-            || verbose
-        {
+        if into.is_some() || here || overwrite || format_override.is_some() || dry_run || verbose {
             return Err(Error::Usage(
                 "sniff does not accept options — just file paths".into(),
             ));
@@ -171,7 +153,6 @@ where
         here,
         overwrite,
         format_override,
-        strip_components,
         dry_run,
         verbose,
     })))
@@ -195,7 +176,6 @@ mod tests {
                 assert!(opts.into.is_none());
                 assert!(!opts.here);
                 assert!(!opts.overwrite);
-                assert_eq!(opts.strip_components, 0);
                 assert!(!opts.verbose);
             }
             _ => panic!("expected Extract"),
@@ -216,15 +196,12 @@ mod tests {
 
     #[test]
     fn extract_with_options() {
-        let cmd = parse(args("unpack -o -v --here --strip-components 2 foo.zip"))
-            .unwrap()
-            .unwrap();
+        let cmd = parse(args("unpack -o -v --here foo.zip")).unwrap().unwrap();
         match cmd {
             Command::Extract(opts) => {
                 assert!(opts.overwrite);
                 assert!(opts.verbose);
                 assert!(opts.here);
-                assert_eq!(opts.strip_components, 2);
                 assert_eq!(opts.archive, PathBuf::from("foo.zip"));
             }
             _ => panic!("expected Extract"),
@@ -301,10 +278,5 @@ mod tests {
     #[test]
     fn into_missing_value() {
         assert!(parse(args("unpack -C")).is_err());
-    }
-
-    #[test]
-    fn strip_components_invalid() {
-        assert!(parse(args("unpack --strip-components abc foo.tar")).is_err());
     }
 }

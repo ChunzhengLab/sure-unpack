@@ -60,10 +60,6 @@ impl Backend {
         }
     }
 
-    pub fn supports_strip_components(&self) -> bool {
-        matches!(self, Backend::Tar)
-    }
-
     pub fn ensure_tool(&self, format: ArchiveFormat) -> Result<PathBuf, Error> {
         match (self, format) {
             (Backend::Lz4, ArchiveFormat::TarLz4) => {
@@ -97,14 +93,13 @@ impl Backend {
         archive: &Path,
         dest: &Path,
         format: ArchiveFormat,
-        strip_components: u32,
         overwrite: bool,
         verbose: bool,
     ) -> Result<(), Error> {
         match self {
             Backend::Tar => {
                 let tool_path = self.ensure_tool(format)?;
-                tar::extract(&tool_path, archive, dest, format, strip_components, verbose)
+                tar::extract(&tool_path, archive, dest, format, verbose)
             }
             Backend::Zip => {
                 let tool_path = self.ensure_tool(format)?;
@@ -118,7 +113,7 @@ impl Backend {
                 let tool_path = self.ensure_tool(format)?;
                 single::extract(&tool_path, self.tool_name(), archive, dest)
             }
-            Backend::Lz4 => lz4::extract(archive, dest, format, strip_components, verbose),
+            Backend::Lz4 => lz4::extract(archive, dest, format, verbose),
         }
     }
 }

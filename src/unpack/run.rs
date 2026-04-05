@@ -50,13 +50,6 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
     let fmt = resolve_format(archive, &opts.format_override)?;
     let backend = Backend::from_format(fmt);
 
-    if opts.strip_components > 0 && !backend.supports_strip_components() {
-        return Err(Error::Usage(format!(
-            "--strip-components is not supported for {} files",
-            fmt.extensions()[0]
-        )));
-    }
-
     let tool_result = backend.ensure_tool(fmt);
     let tool_ok = tool_result.is_ok();
     if !opts.dry_run && !tool_ok {
@@ -92,7 +85,7 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         && !opts.overwrite
         && dest.exists()
     {
-        conflicts = find_member_conflicts(listing, &dest, opts.strip_components);
+        conflicts = find_member_conflicts(listing, &dest);
         if !opts.dry_run
             && let Some(first) = conflicts.first()
         {
@@ -127,9 +120,6 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         println!("backend:   {}", backend.display_name(fmt));
         println!("tool:      {}", if tool_ok { "found" } else { "NOT FOUND" });
         println!("dest:      {}", dest.display());
-        if opts.strip_components > 0 {
-            println!("strip:     {} components", opts.strip_components);
-        }
         if conflicts.is_empty() {
             println!("conflicts: none");
         } else {
@@ -157,14 +147,7 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         std::fs::create_dir_all(parent)?;
     }
 
-    backend.extract(
-        archive,
-        &dest,
-        fmt,
-        opts.strip_components,
-        opts.overwrite,
-        opts.verbose,
-    )?;
+    backend.extract(archive, &dest, fmt, opts.overwrite, opts.verbose)?;
 
     eprintln!("extracted to {}", dest.display());
     Ok(())
@@ -277,27 +260,10 @@ fn upgrade_to_tar(path: &Path, outer: ArchiveFormat) -> ArchiveFormat {
     }
 }
 
-fn find_member_conflicts(
-    entries: &[String],
-    dest: &Path,
-    strip_components: u32,
-) -> Vec<std::path::PathBuf> {
-    let strip = strip_components as usize;
+fn find_member_conflicts(entries: &[String], dest: &Path) -> Vec<std::path::PathBuf> {
     let mut conflicts = Vec::new();
     for entry in entries {
-        let stripped = if strip > 0 {
-            let components: Vec<&str> = entry.split('/').collect();
-            if components.len() <= strip {
-                continue;
-            }
-            components[strip..].join("/")
-        } else {
-            entry.to_string()
-        };
-        if stripped.is_empty() {
-            continue;
-        }
-        let target = dest.join(&stripped);
+        let target = dest.join(entry);
         if target.is_file() {
             conflicts.push(target);
         }

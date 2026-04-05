@@ -19,7 +19,6 @@ pub fn extract(
     archive: &Path,
     dest: &Path,
     format: ArchiveFormat,
-    strip_components: u32,
     verbose: bool,
 ) -> Result<(), Error> {
     match format {
@@ -27,7 +26,7 @@ pub fn extract(
             let tool = tool::ensure("lz4", &["lz4"], format)?;
             single::extract(&tool, "lz4", archive, dest)
         }
-        ArchiveFormat::TarLz4 => extract_tar_lz4(archive, dest, strip_components, verbose),
+        ArchiveFormat::TarLz4 => extract_tar_lz4(archive, dest, verbose),
         _ => unreachable!(),
     }
 }
@@ -73,12 +72,7 @@ fn list_tar_lz4(archive: &Path) -> Result<Vec<String>, Error> {
         .collect())
 }
 
-fn extract_tar_lz4(
-    archive: &Path,
-    dest: &Path,
-    strip_components: u32,
-    verbose: bool,
-) -> Result<(), Error> {
+fn extract_tar_lz4(archive: &Path, dest: &Path, verbose: bool) -> Result<(), Error> {
     let tar = tool::ensure("tar", &["tar"], ArchiveFormat::TarLz4)?;
     let lz4 = tool::ensure("lz4", &["lz4"], ArchiveFormat::TarLz4)?;
 
@@ -92,9 +86,6 @@ fn extract_tar_lz4(
     let lz4_stdout = lz4_child.stdout.take().unwrap();
     let mut tar_cmd = Command::new(tar);
     tar_cmd.arg("-xf").arg("-").arg("-C").arg(dest);
-    if strip_components > 0 {
-        tar_cmd.arg(format!("--strip-components={strip_components}"));
-    }
     if verbose {
         tar_cmd.arg("-v");
     }

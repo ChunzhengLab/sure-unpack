@@ -35,7 +35,6 @@ unpack sniff mystery.bin           # what format is this file?
 unpack list project.tar.gz         # preview contents without extracting
 unpack project.tar.gz --here       # extract into current directory
 unpack --dry-run project.tar.gz    # show what would happen
-unpack --strip-components 1 a.tgz  # strip top-level directory (tar only)
 unpack --format tar.gz mystery.bin # override all detection
 ```
 
@@ -46,7 +45,6 @@ unpack --format tar.gz mystery.bin # override all detection
     --here               Extract into current directory (no subdirectory)
 -o, --overwrite          Allow overwriting existing files
     --format <FMT>       Override format detection (e.g. tar.gz, zip, 7z)
-    --strip-components N Strip N leading path components (tar only)
     --dry-run            Show what would happen without extracting
 -v, --verbose            Show detailed output
 -l, --list               Same as 'unpack list'

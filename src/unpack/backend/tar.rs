@@ -32,7 +32,6 @@ pub fn extract(
     archive: &Path,
     dest: &Path,
     format: ArchiveFormat,
-    strip_components: u32,
     verbose: bool,
 ) -> Result<(), Error> {
     let mut cmd = Command::new(tool);
@@ -40,10 +39,6 @@ pub fn extract(
         cmd.arg(flag);
     }
     cmd.arg("-xf").arg(archive).arg("-C").arg(dest);
-
-    if strip_components > 0 {
-        cmd.arg(format!("--strip-components={strip_components}"));
-    }
     if verbose {
         cmd.arg("-v");
     }

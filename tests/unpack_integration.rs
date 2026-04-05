@@ -480,25 +480,6 @@ fn overwrite_zip() {
 }
 
 #[test]
-fn strip_components_rejected_for_zip() {
-    if !has_tool("unzip") || !has_tool("zip") {
-        return;
-    }
-    let dir = temp_dir("strip-zip");
-    let archive = create_zip(&dir);
-
-    let output = sure_unpack()
-        .arg("--strip-components")
-        .arg("1")
-        .arg(&archive)
-        .output()
-        .unwrap();
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("not supported"));
-}
-
-#[test]
 fn single_file_list_without_tool() {
     // sure-unpack list file.txt.gz should work even if gunzip is not in PATH,
     // because listing a single-file format is pure string logic.
@@ -520,52 +501,6 @@ fn single_file_list_without_tool() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert_eq!(stdout.trim(), "data.txt");
-}
-
-#[test]
-fn strip_components_no_overwrite() {
-    if !has_tool("tar") {
-        return;
-    }
-    // Archive contains top/hello.txt. With --strip-components 1,
-    // tar writes hello.txt directly. Pre-flight check must detect
-    // the conflict at the stripped path, not the original.
-    let dir = temp_dir("strip-no-overwrite");
-    let src_dir = dir.join("src");
-    fs::create_dir_all(src_dir.join("top")).unwrap();
-    fs::write(src_dir.join("top/hello.txt"), "new\n").unwrap();
-
-    let archive = dir.join("nested.tar.gz");
-    let status = Command::new("tar")
-        .args(["-czf"])
-        .arg(&archive)
-        .arg("-C")
-        .arg(&src_dir)
-        .arg("top")
-        .status()
-        .unwrap();
-    assert!(status.success());
-
-    let work = dir.join("work");
-    fs::create_dir_all(&work).unwrap();
-    fs::write(work.join("hello.txt"), "old\n").unwrap();
-
-    // --strip-components 1 --here: should refuse because hello.txt exists
-    let output = sure_unpack()
-        .arg("--here")
-        .arg("--strip-components")
-        .arg("1")
-        .arg(&archive)
-        .current_dir(&work)
-        .output()
-        .unwrap();
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("already exists"), "stderr: {stderr}");
-
-    // Old file must be untouched
-    let content = fs::read_to_string(work.join("hello.txt")).unwrap();
-    assert_eq!(content, "old\n");
 }
 
 #[test]

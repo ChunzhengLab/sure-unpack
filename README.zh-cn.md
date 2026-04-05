@@ -35,7 +35,6 @@ unpack sniff mystery.bin           # 这个文件是什么格式？
 unpack list project.tar.gz         # 预览内容，不解压
 unpack project.tar.gz --here       # 解压到当前目录
 unpack --dry-run project.tar.gz    # 预演
-unpack --strip-components 1 a.tgz  # 去掉顶层目录（仅限 tar）
 unpack --format tar.gz mystery.bin # 覆盖所有检测
 ```
 
@@ -46,7 +45,6 @@ unpack --format tar.gz mystery.bin # 覆盖所有检测
     --here               解压到当前目录，不自动建子目录
 -o, --overwrite          允许覆盖已有文件
     --format <FMT>       手动指定格式（如 tar.gz、zip、7z）
-    --strip-components N 去掉前 N 层路径（仅限 tar）
     --dry-run            预演，不实际解压
 -v, --verbose            显示详细输出
 -l, --list               等同于 unpack list
