@@ -65,6 +65,7 @@ pack mydir/                        # → mydir.zip（默认格式）
 pack mydir/ output.tar.gz          # 从扩展名推断格式
 pack mydir/ output.7z              # 7z 归档
 pack file.txt output.gz            # 单文件压缩
+pack mydir/ output.tar.lz4         # tar + lz4
 pack -f tar.gz mydir/              # 显式指定格式
 pack --dry-run mydir/              # 预演
 ```
@@ -82,13 +83,13 @@ pack --dry-run mydir/              # 预演
 
 - 没有指定输出文件时，默认格式为 `.zip`
 - `--format` 和输出扩展名不一致时直接报错，不猜测
-- 目录不能压缩为单文件格式（`.gz`、`.bz2`、`.xz`、`.zst`），请使用 `.tar.gz`
+- 目录不能压缩为单文件格式（`.gz`、`.bz2`、`.xz`、`.lz4`、`.zst`），请使用对应的 `.tar.*` 格式
 
 ## 支持的格式
 
 | 格式 | unpack | pack | 后端工具 |
 |------|--------|------|---------|
-| `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` `.txz` `.tar.zst` | 支持 | 支持 | `tar` |
+| `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` `.txz` `.tar.lz4` `.tar.zst` | 支持 | 支持 | `tar` / `lz4` |
 | `.zip` | 支持 | 支持 | `unzip` / `zip` |
 | `.7z` | 支持 | 支持 | `7z` / `7zz` |
 | `.rar` | 支持 | — | `7z` / `7zz` |
@@ -96,6 +97,7 @@ pack --dry-run mydir/              # 预演
 | `.gz` | 支持 | 支持 | `gunzip` / `gzip` |
 | `.bz2` | 支持 | 支持 | `bunzip2` / `bzip2` |
 | `.xz` | 支持 | 支持 | `xz` |
+| `.lz4` | 支持 | 支持 | `lz4` |
 | `.zst` | 支持 | 支持 | `zstd` |
 
 ## 默认行为

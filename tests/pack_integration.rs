@@ -21,10 +21,7 @@ fn has_tool(name: &str) -> bool {
 }
 
 fn temp_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "pack-test-{}-{name}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("pack-test-{}-{name}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     dir
@@ -54,12 +51,12 @@ fn pack_default_zip() {
     let dir = temp_dir("default-zip");
     let src = create_source_dir(&dir);
 
-    let output = pack()
-        .arg(&src)
-        .current_dir(&dir)
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let output = pack().arg(&src).current_dir(&dir).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(dir.join("mydir.zip").exists());
 }
 
@@ -72,12 +69,12 @@ fn pack_tar_gz() {
     let src = create_source_dir(&dir);
     let out = dir.join("out.tar.gz");
 
-    let output = pack()
-        .arg(&src)
-        .arg(&out)
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let output = pack().arg(&src).arg(&out).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(out.exists());
 }
 
@@ -90,12 +87,48 @@ fn pack_single_gz() {
     let src = create_source_file(&dir);
     let out = dir.join("data.txt.gz");
 
-    let output = pack()
-        .arg(&src)
-        .arg(&out)
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let output = pack().arg(&src).arg(&out).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(out.exists());
+}
+
+#[test]
+fn pack_single_lz4() {
+    if !has_tool("lz4") {
+        return;
+    }
+    let dir = temp_dir("single-lz4");
+    let src = create_source_file(&dir);
+    let out = dir.join("data.txt.lz4");
+
+    let output = pack().arg(&src).arg(&out).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(out.exists());
+}
+
+#[test]
+fn pack_tar_lz4() {
+    if !has_tool("tar") || !has_tool("lz4") {
+        return;
+    }
+    let dir = temp_dir("tar-lz4");
+    let src = create_source_dir(&dir);
+    let out = dir.join("out.tar.lz4");
+
+    let output = pack().arg(&src).arg(&out).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(out.exists());
 }
 
@@ -106,11 +139,7 @@ fn pack_dir_gz_refused() {
     let dir = temp_dir("dir-gz-refused");
     let src = create_source_dir(&dir);
 
-    let output = pack()
-        .arg(&src)
-        .arg(dir.join("out.gz"))
-        .output()
-        .unwrap();
+    let output = pack().arg(&src).arg(dir.join("out.gz")).output().unwrap();
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("not supported"));
@@ -124,7 +153,8 @@ fn pack_invalid_format() {
 
     // --format nonsense should fail even if output extension is valid
     let output = pack()
-        .arg("-f").arg("nonsense")
+        .arg("-f")
+        .arg("nonsense")
         .arg(&src)
         .arg(dir.join("out.zip"))
         .output()
@@ -140,7 +170,8 @@ fn pack_rar_not_supported() {
     let src = create_source_dir(&dir);
 
     let output = pack()
-        .arg("-f").arg("rar")
+        .arg("-f")
+        .arg("rar")
         .arg(&src)
         .arg(dir.join("out.rar"))
         .output()
@@ -155,11 +186,7 @@ fn pack_iso_not_supported() {
     let dir = temp_dir("iso-not-supported");
     let src = create_source_dir(&dir);
 
-    let output = pack()
-        .arg(&src)
-        .arg(dir.join("out.iso"))
-        .output()
-        .unwrap();
+    let output = pack().arg(&src).arg(dir.join("out.iso")).output().unwrap();
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("not supported"), "stderr: {stderr}");
@@ -171,7 +198,8 @@ fn pack_format_conflict() {
     let src = create_source_dir(&dir);
 
     let output = pack()
-        .arg("-f").arg("zip")
+        .arg("-f")
+        .arg("zip")
         .arg(&src)
         .arg(dir.join("out.tar.gz"))
         .output()
@@ -230,7 +258,11 @@ fn pack_dry_run() {
         .current_dir(&dir)
         .output()
         .unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("format:    .zip"));
@@ -241,11 +273,104 @@ fn pack_dry_run() {
 }
 
 #[test]
+fn pack_verbose_tar_gz() {
+    if !has_tool("tar") {
+        return;
+    }
+    let dir = temp_dir("verbose-tar-gz");
+    let src = create_source_dir(&dir);
+    let out = dir.join("out.tar.gz");
+
+    let output = pack().arg("-v").arg(&src).arg(&out).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(combined.contains("mydir"), "output: {combined}");
+}
+
+#[test]
+fn pack_verbose_zip() {
+    if !has_tool("zip") {
+        return;
+    }
+    let dir = temp_dir("verbose-zip");
+    let src = create_source_dir(&dir);
+    let out = dir.join("out.zip");
+
+    let output = pack().arg("-v").arg(&src).arg(&out).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(combined.contains("mydir"), "output: {combined}");
+}
+
+#[test]
+fn pack_verbose_7z() {
+    if !has_tool("7z") && !has_tool("7zz") {
+        return;
+    }
+    let dir = temp_dir("verbose-7z");
+    let src = create_source_dir(&dir);
+    let out = dir.join("out.7z");
+
+    let output = pack().arg("-v").arg(&src).arg(&out).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(combined.contains("Everything is Ok") || combined.contains("Scanning the drive"));
+}
+
+#[test]
+fn pack_verbose_tar_lz4() {
+    if !has_tool("tar") || !has_tool("lz4") {
+        return;
+    }
+    let dir = temp_dir("verbose-tar-lz4");
+    let src = create_source_dir(&dir);
+    let out = dir.join("out.tar.lz4");
+
+    let output = pack().arg("-v").arg(&src).arg(&out).output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(combined.contains("mydir"), "output: {combined}");
+}
+
+#[test]
 fn pack_source_not_found() {
-    let output = pack()
-        .arg("/nonexistent/dir")
-        .output()
-        .unwrap();
+    let output = pack().arg("/nonexistent/dir").output().unwrap();
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("no such file"));
@@ -275,15 +400,26 @@ fn roundtrip_zip() {
 
     // Pack
     let output = pack().arg(&src).arg(&archive).output().unwrap();
-    assert!(output.status.success(), "pack: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "pack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     // Unpack
     let output = unpack().arg(&archive).current_dir(&work).output().unwrap();
-    assert!(output.status.success(), "unpack: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "unpack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     // Verify
     assert!(work.join("test/mydir/hello.txt").exists());
-    assert_eq!(fs::read_to_string(work.join("test/mydir/hello.txt")).unwrap(), "hello\n");
+    assert_eq!(
+        fs::read_to_string(work.join("test/mydir/hello.txt")).unwrap(),
+        "hello\n"
+    );
     assert!(work.join("test/mydir/sub/deep.txt").exists());
 }
 
@@ -299,13 +435,24 @@ fn roundtrip_tar_gz() {
     fs::create_dir_all(&work).unwrap();
 
     let output = pack().arg(&src).arg(&archive).output().unwrap();
-    assert!(output.status.success(), "pack: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "pack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let output = unpack().arg(&archive).current_dir(&work).output().unwrap();
-    assert!(output.status.success(), "unpack: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "unpack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     assert!(work.join("test/mydir/hello.txt").exists());
-    assert_eq!(fs::read_to_string(work.join("test/mydir/hello.txt")).unwrap(), "hello\n");
+    assert_eq!(
+        fs::read_to_string(work.join("test/mydir/hello.txt")).unwrap(),
+        "hello\n"
+    );
 }
 
 #[test]
@@ -320,10 +467,85 @@ fn roundtrip_gz() {
     fs::create_dir_all(&work).unwrap();
 
     let output = pack().arg(&src).arg(&archive).output().unwrap();
-    assert!(output.status.success(), "pack: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "pack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let output = unpack().arg(&archive).current_dir(&work).output().unwrap();
-    assert!(output.status.success(), "unpack: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "unpack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    assert_eq!(fs::read_to_string(work.join("data.txt")).unwrap(), "some data\n");
+    assert_eq!(
+        fs::read_to_string(work.join("data.txt")).unwrap(),
+        "some data\n"
+    );
+}
+
+#[test]
+fn roundtrip_lz4() {
+    if !has_tool("lz4") {
+        return;
+    }
+    let dir = temp_dir("roundtrip-lz4");
+    let src = create_source_file(&dir);
+    let archive = dir.join("data.txt.lz4");
+    let work = dir.join("work");
+    fs::create_dir_all(&work).unwrap();
+
+    let output = pack().arg(&src).arg(&archive).output().unwrap();
+    assert!(
+        output.status.success(),
+        "pack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let output = unpack().arg(&archive).current_dir(&work).output().unwrap();
+    assert!(
+        output.status.success(),
+        "unpack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert_eq!(
+        fs::read_to_string(work.join("data.txt")).unwrap(),
+        "some data\n"
+    );
+}
+
+#[test]
+fn roundtrip_tar_lz4() {
+    if !has_tool("tar") || !has_tool("lz4") {
+        return;
+    }
+    let dir = temp_dir("roundtrip-tar-lz4");
+    let src = create_source_dir(&dir);
+    let archive = dir.join("test.tar.lz4");
+    let work = dir.join("work");
+    fs::create_dir_all(&work).unwrap();
+
+    let output = pack().arg(&src).arg(&archive).output().unwrap();
+    assert!(
+        output.status.success(),
+        "pack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let output = unpack().arg(&archive).current_dir(&work).output().unwrap();
+    assert!(
+        output.status.success(),
+        "unpack: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert!(work.join("test/mydir/hello.txt").exists());
+    assert_eq!(
+        fs::read_to_string(work.join("test/mydir/hello.txt")).unwrap(),
+        "hello\n"
+    );
+    assert!(work.join("test/mydir/sub/deep.txt").exists());
 }

@@ -65,6 +65,7 @@ pack mydir/                        # → mydir.zip (default format)
 pack mydir/ output.tar.gz          # format from extension
 pack mydir/ output.7z              # 7z archive
 pack file.txt output.gz            # single-file compression
+pack mydir/ output.tar.lz4         # tar + lz4
 pack -f tar.gz mydir/              # explicit format
 pack --dry-run mydir/              # show what would happen
 ```
@@ -82,13 +83,13 @@ pack --dry-run mydir/              # show what would happen
 
 - Default format is `.zip` when no output path is given
 - `--format` and output extension must agree, or an error is raised
-- Directories cannot be packed into single-file formats (`.gz`, `.bz2`, `.xz`, `.zst`) — use `.tar.gz` instead
+- Directories cannot be packed into single-file formats (`.gz`, `.bz2`, `.xz`, `.lz4`, `.zst`) — use the matching `.tar.*` variant instead
 
 ## Supported Formats
 
 | Format | unpack | pack | Backend |
 |--------|--------|------|---------|
-| `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` `.txz` `.tar.zst` | yes | yes | `tar` |
+| `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` `.txz` `.tar.lz4` `.tar.zst` | yes | yes | `tar` / `lz4` |
 | `.zip` | yes | yes | `unzip` / `zip` |
 | `.7z` | yes | yes | `7z` / `7zz` |
 | `.rar` | yes | — | `7z` / `7zz` |
@@ -96,6 +97,7 @@ pack --dry-run mydir/              # show what would happen
 | `.gz` | yes | yes | `gunzip` / `gzip` |
 | `.bz2` | yes | yes | `bunzip2` / `bzip2` |
 | `.xz` | yes | yes | `xz` |
+| `.lz4` | yes | yes | `lz4` |
 | `.zst` | yes | yes | `zstd` |
 
 ## Defaults

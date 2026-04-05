@@ -93,9 +93,9 @@ where
                 is_list = true;
             }
             "-C" | "--into" => {
-                let val = args.next().ok_or_else(|| {
-                    Error::Usage(format!("{arg} requires a directory argument"))
-                })?;
+                let val = args
+                    .next()
+                    .ok_or_else(|| Error::Usage(format!("{arg} requires a directory argument")))?;
                 into = Some(PathBuf::from(val));
             }
             "--here" => {
@@ -105,15 +105,15 @@ where
                 overwrite = true;
             }
             "--format" => {
-                let val = args.next().ok_or_else(|| {
-                    Error::Usage("--format requires a format name".into())
-                })?;
+                let val = args
+                    .next()
+                    .ok_or_else(|| Error::Usage("--format requires a format name".into()))?;
                 format_override = Some(val);
             }
             "--strip-components" => {
-                let val = args.next().ok_or_else(|| {
-                    Error::Usage("--strip-components requires a number".into())
-                })?;
+                let val = args
+                    .next()
+                    .ok_or_else(|| Error::Usage("--strip-components requires a number".into()))?;
                 strip_components = val.parse::<u32>().map_err(|_| {
                     Error::Usage(format!("--strip-components: invalid number '{val}'"))
                 })?;

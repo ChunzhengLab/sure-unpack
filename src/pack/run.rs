@@ -42,15 +42,16 @@ fn do_pack(opts: cli::PackOpts) -> Result<(), Error> {
         return Err(Error::DestinationExists(output));
     }
 
-    let (tool_name, candidates) = tool::for_format_pack(fmt);
-    let tool_result = tool::ensure(tool_name, candidates, fmt);
+    let tool_result = ensure_pack_tools(fmt);
+    let backend_name = pack_backend_name(fmt);
+    let tool_name = tool::for_format_pack(fmt).0;
 
     if opts.dry_run {
         let tool_ok = tool_result.is_ok();
         println!("source:    {}", source.display());
         println!("output:    {}", output.display());
         println!("format:    {}", fmt.extensions()[0]);
-        println!("backend:   {tool_name}");
+        println!("backend:   {backend_name}");
         println!("tool:      {}", if tool_ok { "found" } else { "NOT FOUND" });
         println!("overwrite: {}", if opts.overwrite { "yes" } else { "no" });
         if !tool_ok {
@@ -89,19 +90,14 @@ fn resolve_output_format(opts: &cli::PackOpts) -> Result<ArchiveFormat, Error> {
         None => None,
     };
 
-    let from_ext = opts
-        .output
-        .as_ref()
-        .and_then(|p| format::detect(p).ok());
+    let from_ext = opts.output.as_ref().and_then(|p| format::detect(p).ok());
 
     match (from_flag, from_ext) {
-        (Some(flag_fmt), Some(ext_fmt)) if flag_fmt != ext_fmt => {
-            Err(Error::Usage(format!(
-                "--format {} conflicts with output extension {}",
-                flag_fmt.extensions()[0],
-                ext_fmt.extensions()[0],
-            )))
-        }
+        (Some(flag_fmt), Some(ext_fmt)) if flag_fmt != ext_fmt => Err(Error::Usage(format!(
+            "--format {} conflicts with output extension {}",
+            flag_fmt.extensions()[0],
+            ext_fmt.extensions()[0],
+        ))),
         (Some(fmt), _) => Ok(fmt),
         (_, Some(fmt)) => {
             if !is_pack_supported(fmt) {
@@ -116,11 +112,7 @@ fn resolve_output_format(opts: &cli::PackOpts) -> Result<ArchiveFormat, Error> {
     }
 }
 
-fn resolve_output_path(
-    opts: &cli::PackOpts,
-    source: &Path,
-    fmt: ArchiveFormat,
-) -> PathBuf {
+fn resolve_output_path(opts: &cli::PackOpts, source: &Path, fmt: ArchiveFormat) -> PathBuf {
     if let Some(ref out) = opts.output {
         return out.clone();
     }
@@ -138,7 +130,28 @@ fn suggest_tar_variant(fmt: ArchiveFormat) -> &'static str {
         ArchiveFormat::Gz => ".tar.gz",
         ArchiveFormat::Bz2 => ".tar.bz2",
         ArchiveFormat::Xz => ".tar.xz",
+        ArchiveFormat::Lz4 => ".tar.lz4",
         ArchiveFormat::Zst => ".tar.zst",
         _ => ".tar.gz",
+    }
+}
+
+fn ensure_pack_tools(fmt: ArchiveFormat) -> Result<std::path::PathBuf, Error> {
+    match fmt {
+        ArchiveFormat::TarLz4 => {
+            tool::ensure("tar", &["tar"], fmt)?;
+            tool::ensure("lz4", &["lz4"], fmt)
+        }
+        _ => {
+            let (tool_name, candidates) = tool::for_format_pack(fmt);
+            tool::ensure(tool_name, candidates, fmt)
+        }
+    }
+}
+
+fn pack_backend_name(fmt: ArchiveFormat) -> &'static str {
+    match fmt {
+        ArchiveFormat::TarLz4 => "tar + lz4",
+        _ => tool::for_format_pack(fmt).0,
     }
 }

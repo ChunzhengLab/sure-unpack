@@ -11,7 +11,10 @@ pub fn pack(
     format: ArchiveFormat,
     verbose: bool,
 ) -> Result<(), Error> {
-    let parent = source.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    let parent = source
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
     let name = source
         .file_name()
         .ok_or_else(|| Error::Usage("invalid source path".into()))?;
@@ -39,6 +42,16 @@ pub fn pack(
             code: out.status.code(),
             stderr: String::from_utf8_lossy(&out.stderr).into(),
         });
+    }
+    if verbose {
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        if !stdout.is_empty() {
+            print!("{stdout}");
+        }
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        if !stderr.is_empty() {
+            eprint!("{stderr}");
+        }
     }
     Ok(())
 }

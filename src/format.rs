@@ -8,6 +8,7 @@ pub enum ArchiveFormat {
     TarGz,
     TarBz2,
     TarXz,
+    TarLz4,
     TarZst,
     Zip,
     SevenZ,
@@ -16,6 +17,7 @@ pub enum ArchiveFormat {
     Gz,
     Bz2,
     Xz,
+    Lz4,
     Zst,
 }
 
@@ -25,6 +27,7 @@ impl ArchiveFormat {
         ArchiveFormat::TarGz,
         ArchiveFormat::TarBz2,
         ArchiveFormat::TarXz,
+        ArchiveFormat::TarLz4,
         ArchiveFormat::TarZst,
         ArchiveFormat::Tar,
         ArchiveFormat::Zip,
@@ -34,6 +37,7 @@ impl ArchiveFormat {
         ArchiveFormat::Gz,
         ArchiveFormat::Bz2,
         ArchiveFormat::Xz,
+        ArchiveFormat::Lz4,
         ArchiveFormat::Zst,
     ];
 
@@ -44,6 +48,7 @@ impl ArchiveFormat {
             ArchiveFormat::TarGz => &[".tar.gz", ".tgz"],
             ArchiveFormat::TarBz2 => &[".tar.bz2", ".tbz2"],
             ArchiveFormat::TarXz => &[".tar.xz", ".txz"],
+            ArchiveFormat::TarLz4 => &[".tar.lz4"],
             ArchiveFormat::TarZst => &[".tar.zst"],
             ArchiveFormat::Zip => &[".zip"],
             ArchiveFormat::SevenZ => &[".7z"],
@@ -52,6 +57,7 @@ impl ArchiveFormat {
             ArchiveFormat::Gz => &[".gz"],
             ArchiveFormat::Bz2 => &[".bz2"],
             ArchiveFormat::Xz => &[".xz"],
+            ArchiveFormat::Lz4 => &[".lz4"],
             ArchiveFormat::Zst => &[".zst"],
         }
     }
@@ -63,6 +69,7 @@ impl ArchiveFormat {
             ArchiveFormat::TarGz => &["-z"],
             ArchiveFormat::TarBz2 => &["-j"],
             ArchiveFormat::TarXz => &["-J"],
+            ArchiveFormat::TarLz4 => &[],
             ArchiveFormat::TarZst => &["--zstd"],
             ArchiveFormat::Tar => &[],
             _ => &[],
@@ -77,6 +84,7 @@ impl ArchiveFormat {
                 | ArchiveFormat::TarGz
                 | ArchiveFormat::TarBz2
                 | ArchiveFormat::TarXz
+                | ArchiveFormat::TarLz4
                 | ArchiveFormat::TarZst
                 | ArchiveFormat::Zip
                 | ArchiveFormat::SevenZ
@@ -129,7 +137,7 @@ pub fn from_name(name: &str) -> Option<ArchiveFormat> {
 
 /// Sniff the outer archive format from file header magic bytes.
 /// Pure file I/O — no external tool calls, no subprocess spawning.
-/// For gz/bz2/xz/zst, returns the outer layer only (Gz, not TarGz).
+/// For gz/bz2/xz/lz4/zst, returns the outer layer only (Gz, not TarGz).
 /// Use `probe_tar_inside()` separately to check for tar within compression.
 pub fn sniff_outer(path: &Path) -> Option<ArchiveFormat> {
     let mut buf = [0u8; 262];
@@ -156,6 +164,9 @@ pub fn sniff_outer(path: &Path) -> Option<ArchiveFormat> {
     }
     if n >= 4 && buf[..4] == *b"PK\x03\x04" {
         return Some(ArchiveFormat::Zip);
+    }
+    if n >= 4 && buf[..4] == [0x04, 0x22, 0x4D, 0x18] {
+        return Some(ArchiveFormat::Lz4);
     }
     if n >= 4 && buf[..4] == [0x28, 0xB5, 0x2F, 0xFD] {
         return Some(ArchiveFormat::Zst);
@@ -198,7 +209,7 @@ pub fn probe_tar_inside(path: &Path, tool: &str, args: &[&str]) -> bool {
     if let Some(stdout) = child.stdout.as_mut() {
         while filled < buf.len() {
             match stdout.read(&mut buf[filled..]) {
-                Ok(0) => break,   // EOF
+                Ok(0) => break, // EOF
                 Ok(n) => filled += n,
                 Err(_) => break,
             }
@@ -268,6 +279,7 @@ mod tests {
             ("foo.tbz2", ArchiveFormat::TarBz2),
             ("foo.tar.xz", ArchiveFormat::TarXz),
             ("foo.txz", ArchiveFormat::TarXz),
+            ("foo.tar.lz4", ArchiveFormat::TarLz4),
             ("foo.tar.zst", ArchiveFormat::TarZst),
         ];
         for (name, expected) in cases {
@@ -286,6 +298,7 @@ mod tests {
             ("file.gz", ArchiveFormat::Gz),
             ("file.bz2", ArchiveFormat::Bz2),
             ("file.xz", ArchiveFormat::Xz),
+            ("file.lz4", ArchiveFormat::Lz4),
             ("file.zst", ArchiveFormat::Zst),
         ];
         for (name, expected) in cases {
@@ -326,6 +339,7 @@ mod tests {
             ("bar.tbz2", ArchiveFormat::TarBz2, "bar"),
             ("baz.tar.xz", ArchiveFormat::TarXz, "baz"),
             ("baz.txz", ArchiveFormat::TarXz, "baz"),
+            ("qux.tar.lz4", ArchiveFormat::TarLz4, "qux"),
             ("qux.tar.zst", ArchiveFormat::TarZst, "qux"),
             ("data.tar", ArchiveFormat::Tar, "data"),
             ("archive.zip", ArchiveFormat::Zip, "archive"),
@@ -343,6 +357,7 @@ mod tests {
             ("file.txt.gz", ArchiveFormat::Gz, "file.txt"),
             ("data.csv.bz2", ArchiveFormat::Bz2, "data.csv"),
             ("log.txt.xz", ArchiveFormat::Xz, "log.txt"),
+            ("file.txt.lz4", ArchiveFormat::Lz4, "file.txt"),
             ("dump.sql.zst", ArchiveFormat::Zst, "dump.sql"),
         ];
         for (name, fmt, expected) in cases {
@@ -383,6 +398,7 @@ mod tests {
                 | ArchiveFormat::TarGz
                 | ArchiveFormat::TarBz2
                 | ArchiveFormat::TarXz
+                | ArchiveFormat::TarLz4
                 | ArchiveFormat::TarZst
                 | ArchiveFormat::Zip
                 | ArchiveFormat::SevenZ
@@ -391,10 +407,11 @@ mod tests {
                 | ArchiveFormat::Gz
                 | ArchiveFormat::Bz2
                 | ArchiveFormat::Xz
+                | ArchiveFormat::Lz4
                 | ArchiveFormat::Zst => {}
             }
         }
-        assert_eq!(ArchiveFormat::ALL.len(), 13);
+        assert_eq!(ArchiveFormat::ALL.len(), 15);
     }
 
     #[test]
@@ -406,6 +423,7 @@ mod tests {
         assert!(!ArchiveFormat::Gz.is_multi_file());
         assert!(!ArchiveFormat::Bz2.is_multi_file());
         assert!(!ArchiveFormat::Xz.is_multi_file());
+        assert!(!ArchiveFormat::Lz4.is_multi_file());
         assert!(!ArchiveFormat::Zst.is_multi_file());
     }
 }

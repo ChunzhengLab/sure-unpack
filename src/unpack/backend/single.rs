@@ -23,6 +23,7 @@ pub fn extract(
     let args: &[&str] = match tool_name {
         "gunzip" | "bunzip2" => &["-c"],
         "xz" => &["-dc"],
+        "lz4" => &["-d", "-c", "-q"],
         "zstd" => &["-dc", "--no-progress"],
         _ => &["-dc"],
     };

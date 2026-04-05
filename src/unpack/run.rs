@@ -83,7 +83,8 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
     }
 
     // If single root file and user didn't specify dest, behave like --here
-    let effective_here = opts.here || (is_single_root_file && opts.dest.is_none() && opts.into.is_none());
+    let effective_here =
+        opts.here || (is_single_root_file && opts.dest.is_none() && opts.into.is_none());
     let dest = resolve_dest(&opts, archive, fmt, effective_here);
 
     let mut conflicts = Vec::new();
@@ -99,8 +100,11 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         }
     }
 
-    let is_auto_subdir =
-        fmt.is_multi_file() && !is_single_root_file && opts.dest.is_none() && opts.into.is_none() && !opts.here;
+    let is_auto_subdir = fmt.is_multi_file()
+        && !is_single_root_file
+        && opts.dest.is_none()
+        && opts.into.is_none()
+        && !opts.here;
     if !opts.overwrite && is_auto_subdir && dest.exists() {
         if opts.dry_run {
             conflicts.push(dest.clone());
@@ -120,7 +124,7 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
     if opts.dry_run {
         println!("archive:   {}", archive.display());
         println!("format:    {}", fmt.extensions()[0]);
-        println!("backend:   {}", backend.tool_name());
+        println!("backend:   {}", backend.display_name(fmt));
         println!("tool:      {}", if tool_ok { "found" } else { "NOT FOUND" });
         println!("dest:      {}", dest.display());
         if opts.strip_components > 0 {
@@ -153,7 +157,14 @@ fn do_extract(opts: cli::ExtractOpts) -> Result<(), Error> {
         std::fs::create_dir_all(parent)?;
     }
 
-    backend.extract(archive, &dest, fmt, opts.strip_components, opts.overwrite, opts.verbose)?;
+    backend.extract(
+        archive,
+        &dest,
+        fmt,
+        opts.strip_components,
+        opts.overwrite,
+        opts.verbose,
+    )?;
 
     eprintln!("extracted to {}", dest.display());
     Ok(())
@@ -200,7 +211,13 @@ fn resolve_format(
             | ArchiveFormat::Iso),
         ) => Ok(fmt),
 
-        Some(outer @ (ArchiveFormat::Gz | ArchiveFormat::Bz2 | ArchiveFormat::Xz | ArchiveFormat::Zst)) => {
+        Some(
+            outer @ (ArchiveFormat::Gz
+            | ArchiveFormat::Bz2
+            | ArchiveFormat::Xz
+            | ArchiveFormat::Lz4
+            | ArchiveFormat::Zst),
+        ) => {
             if let Some(ext_fmt) = ext
                 && is_tar_variant_of(ext_fmt, outer)
             {
@@ -216,9 +233,11 @@ fn resolve_format(
 fn sniff_full(path: &Path) -> Option<ArchiveFormat> {
     let outer = format::sniff_outer(path)?;
     match outer {
-        ArchiveFormat::Gz | ArchiveFormat::Bz2 | ArchiveFormat::Xz | ArchiveFormat::Zst => {
-            Some(upgrade_to_tar(path, outer))
-        }
+        ArchiveFormat::Gz
+        | ArchiveFormat::Bz2
+        | ArchiveFormat::Xz
+        | ArchiveFormat::Lz4
+        | ArchiveFormat::Zst => Some(upgrade_to_tar(path, outer)),
         _ => Some(outer),
     }
 }
@@ -229,6 +248,7 @@ fn is_tar_variant_of(ext: ArchiveFormat, outer: ArchiveFormat) -> bool {
         (ArchiveFormat::TarGz, ArchiveFormat::Gz)
             | (ArchiveFormat::TarBz2, ArchiveFormat::Bz2)
             | (ArchiveFormat::TarXz, ArchiveFormat::Xz)
+            | (ArchiveFormat::TarLz4, ArchiveFormat::Lz4)
             | (ArchiveFormat::TarZst, ArchiveFormat::Zst)
     )
 }
@@ -238,6 +258,7 @@ fn upgrade_to_tar(path: &Path, outer: ArchiveFormat) -> ArchiveFormat {
         ArchiveFormat::Gz => ("gunzip", &["-c"]),
         ArchiveFormat::Bz2 => ("bunzip2", &["-c"]),
         ArchiveFormat::Xz => ("xz", &["-dc"]),
+        ArchiveFormat::Lz4 => ("lz4", &["-d", "-c", "-q"]),
         ArchiveFormat::Zst => ("zstd", &["-dc", "--no-progress"]),
         _ => return outer,
     };
@@ -247,6 +268,7 @@ fn upgrade_to_tar(path: &Path, outer: ArchiveFormat) -> ArchiveFormat {
             ArchiveFormat::Gz => ArchiveFormat::TarGz,
             ArchiveFormat::Bz2 => ArchiveFormat::TarBz2,
             ArchiveFormat::Xz => ArchiveFormat::TarXz,
+            ArchiveFormat::Lz4 => ArchiveFormat::TarLz4,
             ArchiveFormat::Zst => ArchiveFormat::TarZst,
             _ => outer,
         }

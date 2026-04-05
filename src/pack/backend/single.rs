@@ -9,8 +9,13 @@ pub fn pack(
     tool_name: &'static str,
     source: &Path,
     output: &Path,
+    verbose: bool,
 ) -> Result<(), Error> {
     let args: &[&str] = match tool_name {
+        "gzip" | "bzip2" | "xz" if verbose => &["-v", "-c"],
+        "lz4" if verbose => &["-v", "-c"],
+        "lz4" => &["-q", "-c"],
+        "zstd" if verbose => &["-v", "-c", "--no-progress"],
         "zstd" => &["-c", "--no-progress"],
         _ => &["-c"],
     };

@@ -111,6 +111,7 @@ jobs:
             license "MIT"
 
             depends_on "xz"
+            depends_on "lz4"
             depends_on "zstd"
             depends_on "sevenzip" => :optional
 

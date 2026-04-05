@@ -50,11 +50,7 @@ impl fmt::Display for Error {
                 )
             }
             Error::DestinationExists(p) => {
-                write!(
-                    f,
-                    "{} already exists (use -o to overwrite)",
-                    p.display()
-                )
+                write!(f, "{} already exists (use -o to overwrite)", p.display())
             }
             Error::ToolFailed { tool, code, stderr } => {
                 if let Some(c) = code {

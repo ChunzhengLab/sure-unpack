@@ -34,6 +34,7 @@ pub fn for_format(format: ArchiveFormat) -> (&'static str, &'static [&'static st
         ArchiveFormat::Gz => ("gunzip", &["gunzip"]),
         ArchiveFormat::Bz2 => ("bunzip2", &["bunzip2"]),
         ArchiveFormat::Xz => ("xz", &["xz"]),
+        ArchiveFormat::TarLz4 | ArchiveFormat::Lz4 => ("lz4", &["lz4"]),
         ArchiveFormat::Zst => ("zstd", &["zstd"]),
     }
 }
@@ -57,6 +58,7 @@ pub fn for_format_pack(format: ArchiveFormat) -> (&'static str, &'static [&'stat
         ArchiveFormat::Gz => ("gzip", &["gzip"]),
         ArchiveFormat::Bz2 => ("bzip2", &["bzip2"]),
         ArchiveFormat::Xz => ("xz", &["xz"]),
+        ArchiveFormat::TarLz4 | ArchiveFormat::Lz4 => ("lz4", &["lz4"]),
         ArchiveFormat::Zst => ("zstd", &["zstd"]),
         // rar/iso are read-only formats
         ArchiveFormat::Rar | ArchiveFormat::Iso => ("7z", &["7z", "7zz"]),

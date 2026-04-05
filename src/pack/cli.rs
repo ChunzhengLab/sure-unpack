@@ -57,9 +57,9 @@ where
                 return Ok(None);
             }
             "-f" | "--format" => {
-                let val = args.next().ok_or_else(|| {
-                    Error::Usage("--format requires a format name".into())
-                })?;
+                let val = args
+                    .next()
+                    .ok_or_else(|| Error::Usage("--format requires a format name".into()))?;
                 format_override = Some(val);
             }
             "--dry-run" => {
