@@ -180,6 +180,11 @@ pub fn sniff_outer(path: &Path) -> Option<ArchiveFormat> {
     if n >= 262 && &buf[257..262] == b"ustar" {
         return Some(ArchiveFormat::Tar);
     }
+    // Zip with prepended data (self-extracting, PGP header, etc.):
+    // scan tail for EOCD signature PK\x05\x06
+    if let Ok(true) = check_zip_eocd(path) {
+        return Some(ArchiveFormat::Zip);
+    }
     if let Ok(true) = check_iso(path) {
         return Some(ArchiveFormat::Iso);
     }
@@ -220,6 +225,31 @@ pub fn probe_tar_inside(path: &Path, tool: &str, args: &[&str]) -> bool {
     let _ = child.wait();
 
     filled >= 262 && &buf[257..262] == b"ustar"
+}
+
+/// Scan the last 65557 bytes for the zip EOCD signature (PK\x05\x06).
+/// This catches zip files with prepended data (self-extracting, PGP headers, etc.).
+fn check_zip_eocd(path: &Path) -> std::io::Result<bool> {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let mut f = std::fs::File::open(path)?;
+    let file_len = f.seek(SeekFrom::End(0))?;
+
+    // EOCD can be at most 65557 bytes from the end
+    let scan_size = std::cmp::min(file_len, 65557) as usize;
+    f.seek(SeekFrom::End(-(scan_size as i64)))?;
+
+    let mut buf = vec![0u8; scan_size];
+    f.read_exact(&mut buf)?;
+
+    // Scan backwards for PK\x05\x06
+    let sig = [0x50, 0x4B, 0x05, 0x06];
+    for i in (0..buf.len().saturating_sub(3)).rev() {
+        if buf[i..i + 4] == sig {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn check_iso(path: &Path) -> std::io::Result<bool> {
